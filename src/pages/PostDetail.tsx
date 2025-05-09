@@ -26,6 +26,21 @@ const PostDetail = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
+  // Track scroll for reading progress bar
+  useEffect(() => {
+    const updateReadingProgress = () => {
+      const progressBar = document.getElementById('reading-progress-bar');
+      if (!progressBar) return;
+      
+      const totalHeight = document.body.scrollHeight - window.innerHeight;
+      const progress = (window.scrollY / totalHeight) * 100;
+      progressBar.style.width = `${progress}%`;
+    };
+    
+    window.addEventListener('scroll', updateReadingProgress);
+    return () => window.removeEventListener('scroll', updateReadingProgress);
+  }, []);
+  
   // Fetch post data using React Query
   const { 
     data: post, 
@@ -557,20 +572,5 @@ const PostDetail = () => {
     </div>
   );
 };
-
-// Add scroll tracking for reading progress when component mounts
-useEffect(() => {
-  const updateReadingProgress = () => {
-    const progressBar = document.getElementById('reading-progress-bar');
-    if (!progressBar) return;
-    
-    const totalHeight = document.body.scrollHeight - window.innerHeight;
-    const progress = (window.scrollY / totalHeight) * 100;
-    progressBar.style.width = `${progress}%`;
-  };
-  
-  window.addEventListener('scroll', updateReadingProgress);
-  return () => window.removeEventListener('scroll', updateReadingProgress);
-}, []);
 
 export default PostDetail;
