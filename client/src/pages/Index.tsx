@@ -45,7 +45,7 @@ const Index = () => {
 
         // Fetch featured posts
         const featuredResponse = await fetch(
-          "http://localhost:5000/api/posts/featured"
+          "https://vibrant-vista-sa5w.onrender.com/api/posts/featured"
         );
         if (!featuredResponse.ok)
           throw new Error("Failed to fetch featured posts");
@@ -53,7 +53,7 @@ const Index = () => {
 
         // Fetch latest posts
         const latestResponse = await fetch(
-          "http://localhost:5000/api/posts/latest"
+          "https://vibrant-vista-sa5w.onrender.com/api/posts/latest"
         );
         if (!latestResponse.ok) throw new Error("Failed to fetch latest posts");
         const latestData = await latestResponse.json();
