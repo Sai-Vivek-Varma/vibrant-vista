@@ -6,6 +6,7 @@ import { Menu, X, Search } from 'lucide-react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { Badge } from './ui/badge';
+import { ThemeToggle } from './ThemeToggle';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -43,7 +44,7 @@ const Navbar = () => {
 
   return (
     <header className={`sticky top-0 w-full transition-all duration-300 z-40 ${
-      isScrolled ? 'bg-white/95 backdrop-blur-md shadow-soft' : 'bg-white'
+      isScrolled ? 'bg-background/95 backdrop-blur-md shadow-soft' : 'bg-background'
     }`}>
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center" aria-label="Home">
@@ -59,6 +60,8 @@ const Navbar = () => {
         </nav>
 
         <div className="hidden md:flex items-center space-x-4">
+          <ThemeToggle />
+          
           {user ? (
             <>
               <Link to="/search" className="text-muted-foreground hover:text-primary transition-colors duration-200" aria-label="Search">
@@ -92,20 +95,24 @@ const Navbar = () => {
         </div>
 
         {/* Mobile menu button */}
-        <button 
-          className="md:hidden text-foreground p-2 rounded-md hover:bg-accent transition-colors" 
-          onClick={toggleMenu}
-          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={isMenuOpen}
-        >
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="md:hidden flex items-center space-x-2">
+          <ThemeToggle />
+          
+          <button 
+            className="text-foreground p-2 rounded-md hover:bg-accent transition-colors" 
+            onClick={toggleMenu}
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isMenuOpen}
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Navigation */}
       {isMenuOpen && (
         <motion.div 
-          className="md:hidden px-4 py-2 pb-4 bg-white border-t border-border"
+          className="md:hidden px-4 py-2 pb-4 bg-background border-t border-border"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
