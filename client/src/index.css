@@ -131,4 +131,19 @@
   .card-hover {
     @apply transition-transform duration-300 hover:translate-y-[-5px];
   }
+  
+  /* Instagram-style feed styles */
+  .instagram-style-feed {
+    @apply max-w-3xl mx-auto;
+  }
+  
+  .fixed-page-container {
+    height: calc(100vh - 64px); /* Adjust based on your navbar height */
+    @apply overflow-hidden;
+  }
+  
+  .fixed-page-container .container {
+    height: 100%;
+    @apply overflow-hidden;
+  }
 }

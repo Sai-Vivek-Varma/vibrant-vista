@@ -6,7 +6,7 @@ import FeaturedPost from "@/components/FeaturedPost";
 import PostCard from "@/components/PostCard";
 import CategoryCard from "@/components/CategoryCard";
 import NewsletterForm from "@/components/NewsletterForm";
-import InfinitePostFeed from "@/components/InfinitePostFeed";
+import InstagramStyleFeed from "@/components/InstagramStyleFeed";
 import { Post } from "@/types/post";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -85,19 +85,20 @@ const Index = () => {
 
       <main className="flex-grow">
         {user ? (
-          // Quora-style feed for logged-in users
-          <section className="py-12">
+          // Instagram-style feed for logged-in users with fixed page width
+          <section className="py-12 fixed-page-container">
             <div className="container mx-auto px-4">
-              <h1 className="text-3xl md:text-4xl font-bold font-serif mb-8">
+              <h1 className="text-3xl md:text-4xl font-bold font-serif mb-8 text-center">
                 Your Feed
               </h1>
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
+                {/* Instagram-style feed in the center */}
                 <div className="lg:col-span-3">
-                  <InfinitePostFeed initialPosts={latestPosts.slice(0, 6)} />
+                  <InstagramStyleFeed initialPosts={latestPosts} />
                 </div>
                 
-                {/* Sidebar with Categories and Newsletter */}
-                <div className="space-y-8">
+                {/* Fixed sidebar with Categories and Newsletter */}
+                <div className="space-y-8 lg:sticky lg:top-20 lg:h-fit">
                   {/* Categories */}
                   <div className="bg-card rounded-xl p-6 border border-border">
                     <h3 className="text-xl font-bold font-serif mb-6">
