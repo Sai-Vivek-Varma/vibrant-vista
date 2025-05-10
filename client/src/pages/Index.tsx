@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { Moon, Sun } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const Index = () => {
   const [featuredPosts, setFeaturedPosts] = useState<Post[]>([]);
@@ -112,14 +113,14 @@ const Index = () => {
               </h1>
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12 h-[calc(100%-60px)]">
                 {/* Instagram-style feed in the center */}
-                <div className="lg:col-span-3 overflow-y-auto h-full pr-2 pb-20 feed-container">
+                <div className="lg:col-span-3 h-full pr-2 pb-4">
                   <InstagramStyleFeed initialPosts={latestPosts} />
                 </div>
                 
                 {/* Fixed sidebar with Categories and Newsletter */}
                 <div className="space-y-8 lg:sticky lg:top-20 lg:h-fit hidden lg:block">
                   {/* Categories */}
-                  <div className="bg-card rounded-xl p-6 border border-border">
+                  <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
                     <h3 className="text-xl font-bold font-serif mb-6">
                       Popular Categories
                     </h3>
@@ -136,12 +137,12 @@ const Index = () => {
                   </div>
 
                   {/* Newsletter */}
-                  <div className="bg-card rounded-xl p-6 border border-border">
+                  <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
                     <NewsletterForm />
                   </div>
 
                   {/* Create Post Button */}
-                  <div className="bg-card rounded-xl p-6 border border-border">
+                  <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
                     <h3 className="text-lg font-bold mb-4">Share your ideas</h3>
                     <p className="text-muted-foreground mb-4">Have something interesting to share with the community?</p>
                     <Link to="/create-post" className="w-full">
@@ -162,11 +163,11 @@ const Index = () => {
             <section className="bg-gradient-to-r from-primary/10 to-secondary/10 py-16 md:py-24">
               <div className="container mx-auto px-4">
                 <div className="max-w-3xl mx-auto text-center">
-                  <h1 className="text-4xl md:text-6xl font-bold font-serif mb-6 animate-fadeIn">
+                  <h1 className="text-4xl md:text-6xl font-bold font-serif mb-6">
                     Share Your <span className="text-primary">Ideas</span>, Connect
                     with <span className="text-secondary">Others</span>
                   </h1>
-                  <p className="text-lg md:text-xl text-muted-foreground mb-8 animate-slideUp">
+                  <p className="text-lg md:text-xl text-muted-foreground mb-8">
                     A platform for creators to publish their thoughts, stories, and
                     expertise with a passionate community.
                   </p>

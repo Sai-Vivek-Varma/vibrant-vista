@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Post } from "@/types/post";
-import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, MessageSquare, Heart, Share, Bookmark } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -12,6 +11,7 @@ import { useInView } from "@/hooks/useInView";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { analyzeContent } from "@/services/aiService";
 import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface InstagramStyleFeedProps {
   initialPosts?: Post[];
@@ -29,7 +29,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
     summary: string;
   }}>({});
   const { toast } = useToast();
-  const loadMoreRef = useRef<HTMLDivElement>(null);
   const [ref, inView] = useInView({ threshold: 0.5 });
   const { user } = useAuthContext();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,44 +109,13 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
     });
   };
 
-  // Function for post visibility animations with framer-motion
-  const PostItem = ({ post, index }: { post: Post, index: number }) => {
-    const postRef = useRef<HTMLDivElement>(null);
-    const [isVisible, setIsVisible] = useState(false);
+  // Function for post item without animations
+  const PostItem = ({ post }: { post: Post }) => {
     const formattedDate = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
     
-    // Use the useInView hook with a different threshold for each post
-    const [inViewRef, postInView] = useInView({ 
-      threshold: 0.3,
-      delay: index * 100, // Staggered delay for animation
-    });
-    
-    // Set ref using callback ref pattern to combine both refs
-    const setRefs = (element: HTMLDivElement | null) => {
-      postRef.current = element;
-      if (typeof inViewRef === 'function') {
-        inViewRef(element);
-      } else if (inViewRef) {
-        // @ts-ignore - TypeScript doesn't understand this pattern well
-        inViewRef.current = element;
-      }
-    };
-    
-    useEffect(() => {
-      if (postInView) {
-        setIsVisible(true);
-      }
-    }, [postInView]);
-
     return (
-      <motion.div
-        ref={setRefs}
-        initial={{ opacity: 0, y: 50 }}
-        animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="w-full max-w-2xl mx-auto mb-16"
-      >
-        <Card className="overflow-hidden border-none shadow-lg">
+      <div className="w-full max-w-2xl mx-auto mb-8">
+        <Card className="overflow-hidden border shadow-md">
           <div className="p-4 border-b flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
@@ -236,15 +204,15 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     );
   };
 
   return (
-    <div className="instagram-style-feed w-full mx-auto py-6 h-full overflow-y-auto" ref={containerRef}>
+    <ScrollArea className="instagram-style-feed w-full mx-auto py-6 h-full">
       <div className="flex flex-col items-center pb-20">
-        {posts.map((post, index) => (
-          <PostItem key={post._id} post={post} index={index} />
+        {posts.map((post) => (
+          <PostItem key={post._id} post={post} />
         ))}
       </div>
       
@@ -259,7 +227,7 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
           <p className="text-muted-foreground text-center">No more posts to show</p>
         )}
       </div>
-    </div>
+    </ScrollArea>
   );
 };
 
