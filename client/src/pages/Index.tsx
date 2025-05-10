@@ -12,6 +12,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import { Moon, Sun } from "lucide-react";
 
 const Index = () => {
   const [featuredPosts, setFeaturedPosts] = useState<Post[]>([]);
@@ -41,6 +43,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuthContext();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -79,6 +82,22 @@ const Index = () => {
     fetchPosts();
   }, [toast]);
 
+  // Theme toggle button component 
+  const ThemeToggleButton = () => (
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      onClick={toggleTheme} 
+      className="fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full bg-primary/10 backdrop-blur-sm"
+    >
+      {theme === 'dark' ? (
+        <Sun className="h-5 w-5" />
+      ) : (
+        <Moon className="h-5 w-5" />
+      )}
+    </Button>
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -86,19 +105,19 @@ const Index = () => {
       <main className="flex-grow">
         {user ? (
           // Instagram-style feed for logged-in users with fixed page width
-          <section className="py-12 fixed-page-container">
-            <div className="container mx-auto px-4">
-              <h1 className="text-3xl md:text-4xl font-bold font-serif mb-8 text-center">
+          <section className="py-6 fixed-page-container">
+            <div className="container mx-auto px-4 h-full">
+              <h1 className="text-3xl md:text-4xl font-bold font-serif mb-6 text-center">
                 Your Feed
               </h1>
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12 h-[calc(100%-60px)]">
                 {/* Instagram-style feed in the center */}
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-3 overflow-y-auto h-full pr-2 pb-20 feed-container">
                   <InstagramStyleFeed initialPosts={latestPosts} />
                 </div>
                 
                 {/* Fixed sidebar with Categories and Newsletter */}
-                <div className="space-y-8 lg:sticky lg:top-20 lg:h-fit">
+                <div className="space-y-8 lg:sticky lg:top-20 lg:h-fit hidden lg:block">
                   {/* Categories */}
                   <div className="bg-card rounded-xl p-6 border border-border">
                     <h3 className="text-xl font-bold font-serif mb-6">
@@ -132,6 +151,9 @@ const Index = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Theme toggle button */}
+            <ThemeToggleButton />
           </section>
         ) : (
           // Landing page for guests
@@ -252,6 +274,9 @@ const Index = () => {
                 </div>
               </div>
             </section>
+            
+            {/* Theme toggle button */}
+            <ThemeToggleButton />
           </>
         )}
       </main>

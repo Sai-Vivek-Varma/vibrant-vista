@@ -8,8 +8,10 @@ import { Loader2, MessageSquare, Heart, Share, Bookmark } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { useInView } from 'framer-motion';
+import { useInView } from "@/hooks/useInView";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { analyzeContent } from "@/services/aiService";
+import { toast } from "sonner";
 
 interface InstagramStyleFeedProps {
   initialPosts?: Post[];
@@ -20,32 +22,24 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [aiAnalysis, setAiAnalysis] = useState<{[key: string]: string}>({});
+  const [aiAnalysis, setAiAnalysis] = useState<{[key: string]: {
+    insight: string;
+    sentiment: 'positive' | 'neutral' | 'negative';
+    topics: string[];
+    summary: string;
+  }}>({});
   const { toast } = useToast();
-  const observerRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [ref, inView] = useInView({ threshold: 0.5 });
   const { user } = useAuthContext();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch more posts when user scrolls to the bottom
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !isLoading && hasMore) {
-          loadMorePosts();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
+    if (inView && !isLoading && hasMore) {
+      loadMorePosts();
     }
-
-    return () => {
-      if (observerRef.current) {
-        observer.unobserve(observerRef.current);
-      }
-    };
-  }, [isLoading, hasMore]);
+  }, [inView, isLoading, hasMore]);
 
   const loadMorePosts = async () => {
     if (isLoading || !hasMore) return;
@@ -74,7 +68,7 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
 
         // Generate AI analysis for each new post
         newPosts.forEach((post: Post) => {
-          generateAiInsight(post._id, post.content.substring(0, 150));
+          generateAiInsight(post._id, post.content);
         });
       }
     } catch (error) {
@@ -89,39 +83,67 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
     }
   };
 
-  // Mock AI insight generation (this would be replaced with actual AI API call)
+  // Generate AI insights for each post
   const generateAiInsight = async (postId: string, content: string) => {
-    // Simulate API call delay
-    setTimeout(() => {
-      // Mock AI-generated insights (in a real app, this would call an AI API)
-      const insights = [
-        "This post contains interesting perspectives on modern technology.",
-        "The author makes compelling arguments about social media impacts.",
-        "This content explores innovative ideas worth discussing.",
-        "The writing style suggests a well-informed perspective.",
-        "This post might spark meaningful conversations about current trends."
-      ];
-      
-      const randomInsight = insights[Math.floor(Math.random() * insights.length)];
-      
+    try {
+      const analysis = await analyzeContent(content);
       setAiAnalysis(prev => ({
         ...prev,
-        [postId]: randomInsight
+        [postId]: analysis
       }));
-    }, 1500);
+    } catch (error) {
+      console.error("Error generating AI insight:", error);
+    }
   };
 
-  // Function to handle post visibility animations with framer-motion
+  // Function to like a post (mock)
+  const handleLikePost = (postId: string) => {
+    toast.success("Post liked!", {
+      description: "Your like has been recorded"
+    });
+  };
+
+  // Function to bookmark a post (mock)
+  const handleBookmarkPost = (postId: string) => {
+    toast.success("Post bookmarked!", {
+      description: "Added to your saved items"
+    });
+  };
+
+  // Function for post visibility animations with framer-motion
   const PostItem = ({ post, index }: { post: Post, index: number }) => {
-    const ref = useRef(null);
-    const isInView = useInView(ref, { once: false, amount: 0.3 });
+    const postRef = useRef<HTMLDivElement>(null);
+    const [isVisible, setIsVisible] = useState(false);
     const formattedDate = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+    
+    // Use the useInView hook with a different threshold for each post
+    const [inViewRef, postInView] = useInView({ 
+      threshold: 0.3,
+      delay: index * 100, // Staggered delay for animation
+    });
+    
+    // Set ref using callback ref pattern to combine both refs
+    const setRefs = (element: HTMLDivElement | null) => {
+      postRef.current = element;
+      if (typeof inViewRef === 'function') {
+        inViewRef(element);
+      } else if (inViewRef) {
+        // @ts-ignore - TypeScript doesn't understand this pattern well
+        inViewRef.current = element;
+      }
+    };
+    
+    useEffect(() => {
+      if (postInView) {
+        setIsVisible(true);
+      }
+    }, [postInView]);
 
     return (
       <motion.div
-        ref={ref}
+        ref={setRefs}
         initial={{ opacity: 0, y: 50 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+        animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
         transition={{ duration: 0.5, delay: 0.1 }}
         className="w-full max-w-2xl mx-auto mb-16"
       >
@@ -152,17 +174,29 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
           {/* Action buttons */}
           <div className="p-4 flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="icon" className="hover:text-primary">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="hover:text-primary"
+                onClick={() => handleLikePost(post._id)}
+              >
                 <Heart className="h-6 w-6" />
               </Button>
-              <Button variant="ghost" size="icon" className="hover:text-primary">
-                <MessageSquare className="h-6 w-6" />
-              </Button>
+              <Link to={`/posts/${post._id}`}>
+                <Button variant="ghost" size="icon" className="hover:text-primary">
+                  <MessageSquare className="h-6 w-6" />
+                </Button>
+              </Link>
               <Button variant="ghost" size="icon" className="hover:text-primary">
                 <Share className="h-6 w-6" />
               </Button>
             </div>
-            <Button variant="ghost" size="icon" className="hover:text-primary">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hover:text-primary"
+              onClick={() => handleBookmarkPost(post._id)}
+            >
               <Bookmark className="h-6 w-6" />
             </Button>
           </div>
@@ -180,7 +214,18 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
             {aiAnalysis[post._id] && (
               <div className="mt-4 p-3 bg-secondary/10 rounded-lg border border-secondary/20">
                 <p className="text-xs font-medium text-secondary-foreground mb-1">AI Analysis</p>
-                <p className="text-sm">{aiAnalysis[post._id]}</p>
+                <div className="space-y-2">
+                  <p className="text-sm"><span className="font-medium">Insight:</span> {aiAnalysis[post._id].insight}</p>
+                  <p className="text-sm"><span className="font-medium">Sentiment:</span> {' '}
+                    <span className={
+                      aiAnalysis[post._id].sentiment === 'positive' ? 'text-green-500' :
+                      aiAnalysis[post._id].sentiment === 'negative' ? 'text-red-500' : 'text-blue-500'
+                    }>
+                      {aiAnalysis[post._id].sentiment}
+                    </span>
+                  </p>
+                  <p className="text-sm"><span className="font-medium">Topics:</span> {aiAnalysis[post._id].topics.join(', ')}</p>
+                </div>
               </div>
             )}
             
@@ -196,16 +241,16 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
   };
 
   return (
-    <div className="instagram-style-feed w-full mx-auto py-6">
-      <div className="flex flex-col items-center">
+    <div className="instagram-style-feed w-full mx-auto py-6 h-full overflow-y-auto" ref={containerRef}>
+      <div className="flex flex-col items-center pb-20">
         {posts.map((post, index) => (
           <PostItem key={post._id} post={post} index={index} />
         ))}
       </div>
       
       <div 
-        ref={observerRef} 
-        className="w-full flex justify-center py-8"
+        ref={ref} 
+        className="w-full flex justify-center py-8 mt-4"
       >
         {isLoading && (
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

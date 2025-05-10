@@ -135,6 +135,8 @@
   /* Instagram-style feed styles */
   .instagram-style-feed {
     @apply max-w-3xl mx-auto;
+    scrollbar-width: thin;
+    -ms-overflow-style: -ms-autohiding-scrollbar;
   }
   
   .fixed-page-container {
@@ -145,5 +147,22 @@
   .fixed-page-container .container {
     height: 100%;
     @apply overflow-hidden;
+  }
+  
+  /* Enhanced Instagram feed styles */
+  .instagram-post-card {
+    @apply transition-all duration-300 w-full max-w-2xl mx-auto mb-8;
+  }
+  
+  .sentiment-positive {
+    @apply text-green-500;
+  }
+  
+  .sentiment-negative {
+    @apply text-red-500;
+  }
+  
+  .sentiment-neutral {
+    @apply text-blue-500;
   }
 }
