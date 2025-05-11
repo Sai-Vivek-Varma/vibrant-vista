@@ -109,6 +109,6 @@ export const renderPostContent = (content: string) => {
   return paragraphs;
 };
 
-// For backward compatibility
+// For backward compatibility - make sure these are exported
 export const toggleBookmarkPost = togglePostBookmark;
 export const toggleLikePost = togglePostLike;

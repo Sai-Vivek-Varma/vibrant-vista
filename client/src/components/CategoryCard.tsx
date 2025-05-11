@@ -16,26 +16,9 @@ const CategoryCard = ({ name, count, image }: CategoryCardProps) => {
     threshold: 0.2
   });
 
-  // Fetch posts for this category to ensure we have accurate counts
-  const { data: posts } = useQuery({
-    queryKey: ['category-posts', name],
-    queryFn: async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com"}/api/categories/${name}/posts`);
-        if (!response.ok) throw new Error('Failed to fetch posts');
-        return response.json();
-      } catch (error) {
-        console.error(`Error fetching posts for category ${name}:`, error);
-        return [];
-      }
-    },
-    // Use the provided count initially, will be updated when data loads
-    initialData: [],
-    enabled: !!name
-  });
-
-  // Use the fetched posts count or fallback to the provided count
-  const postsCount = posts?.length || count;
+  // Use the provided count directly instead of making an API call
+  // This avoids 404 errors when the API endpoint doesn't exist yet
+  const postsCount = count || 0;
 
   return (
     <motion.div
