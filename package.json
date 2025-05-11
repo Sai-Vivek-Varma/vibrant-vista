@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "npm run dev -w client",
     "build": "npm run build -w client",
+    "build:dev": "cd client && npm run build:dev",
     "preview": "npm run preview -w client",
     "server": "npm run dev -w server"
   }
