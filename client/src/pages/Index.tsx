@@ -424,7 +424,7 @@ const Index = () => {
           // Landing page for guests
           <>
             {/* Categories and Featured Posts in one section */}
-            <section className='bg-gradient-to-r from-primary/10 to-secondary/10 py-16 md:py-24'>
+            <section className='py-4'>
               <div className='container mx-auto px-4'>
                 <div className='max-w-3xl mx-auto text-center'>
                   <h1 className='text-4xl md:text-6xl font-bold font-serif mb-6 animate-fadeIn'>

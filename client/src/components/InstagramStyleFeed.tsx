@@ -1,17 +1,37 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post } from "@/types/post";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, MessageSquare, Heart, Share, Bookmark } from "lucide-react";
+import {
+  Loader2,
+  MessageSquare,
+  Heart,
+  Share,
+  Bookmark,
+  Volume2,
+  Sparkles,
+  VolumeX,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useInView } from "@/hooks/useInView";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { analyzeContent } from "@/services/aiService";
+import {
+  analyzeContent,
+  generateQuickSummary,
+  generateAudio,
+} from "@/services/aiService";
 import { toast as sonnerToast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface InstagramStyleFeedProps {
   initialPosts?: Post[];
@@ -34,15 +54,72 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
   const [ref, inView] = useInView({ threshold: 0.5 });
   const { user } = useAuthContext();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [summaryLoading, setSummaryLoading] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [summaries, setSummaries] = useState<{ [key: string]: string }>({});
+  const [audioUrls, setAudioUrls] = useState<{ [key: string]: string }>({});
+  const audioRefs = useRef<{ [key: string]: HTMLAudioElement | null }>({});
+  const [selectedVoice, setSelectedVoice] = useState<string>("default");
+  const [isSpeaking, setIsSpeaking] = useState<{ [key: string]: boolean }>({});
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [currentUtterance, setCurrentUtterance] =
+    useState<SpeechSynthesisUtterance | null>(null); // To store the current utterance
+  const [targetVoiceName, setTargetVoiceName] = useState<string>("Samantha"); // Default female voice
+  const speechSynthesisRef = useRef<SpeechSynthesis | null>(null);
+  const [speechSynthesisError, setSpeechSynthesisError] = useState<
+    string | null
+  >(null);
+  const [voicesLoaded, setVoicesLoaded] = useState(false); // Track if voices are loaded
+  const [voicesLoading, setVoicesLoading] = useState(false);
 
-  // Fetch more posts when user scrolls to the bottom
+  // Load voices and set up listener
+  useEffect(() => {
+    speechSynthesisRef.current = window.speechSynthesis;
+
+    const loadVoices = () => {
+      if (speechSynthesisRef.current) {
+        setVoicesLoading(true);
+        try {
+          const availableVoices = speechSynthesisRef.current.getVoices();
+          setVoices(availableVoices);
+          setVoicesLoaded(true); // Set flag when voices are loaded
+        } catch (error) {
+          console.error("Error getting voices: ", error);
+          setSpeechSynthesisError("Error initializing speech synthesis.");
+        } finally {
+          setVoicesLoading(false);
+        }
+      }
+    };
+
+    // Load voices immediately
+    loadVoices();
+
+    // Set up listener for voiceschanged event
+    const handleVoicesChanged = () => {
+      loadVoices();
+    };
+
+    if (speechSynthesisRef.current) {
+      speechSynthesisRef.current.onvoiceschanged = handleVoicesChanged;
+    }
+
+    // Cleanup the event listener
+    return () => {
+      if (speechSynthesisRef.current) {
+        speechSynthesisRef.current.onvoiceschanged = null;
+      }
+      speechSynthesisRef.current = null;
+    };
+  }, []); // Empty dependency array to run only once on mount
+
   useEffect(() => {
     if (inView && !isLoading && hasMore) {
       loadMorePosts();
     }
   }, [inView, isLoading, hasMore]);
 
-  // Update the loadMorePosts function to better handle when there are no more posts
   const loadMorePosts = async () => {
     if (isLoading || !hasMore) return;
 
@@ -63,7 +140,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
         setHasMore(false);
       } else {
         setPosts((prevPosts) => {
-          // Filter out duplicate posts
           const uniqueNewPosts = newPosts.filter(
             (newPost: Post) =>
               !prevPosts.some(
@@ -71,7 +147,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
               )
           );
 
-          // If no new unique posts were found, we've reached the end
           if (uniqueNewPosts.length === 0) {
             setHasMore(false);
             return prevPosts;
@@ -80,11 +155,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
           return [...prevPosts, ...uniqueNewPosts];
         });
         setPage((prevPage) => prevPage + 1);
-
-        // Generate AI analysis for each new post
-        newPosts.forEach((post: Post) => {
-          generateAiInsight(post._id, post.content);
-        });
       }
     } catch (error) {
       console.error("Error fetching posts:", error);
@@ -93,40 +163,129 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
         description: "Failed to load more posts",
         variant: "destructive",
       });
-      setHasMore(false); // Stop trying to load more on error
+      setHasMore(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Generate AI insights for each post
-  const generateAiInsight = async (postId: string, content: string) => {
+  const handleGenerateSummary = async (postId: string, content: string) => {
     try {
-      const analysis = await analyzeContent(content);
-      setAiAnalysis((prev) => ({
-        ...prev,
-        [postId]: analysis,
-      }));
+      setSummaryLoading((prev) => ({ ...prev, [postId]: true }));
+
+      const summaryPromise = generateQuickSummary(content);
+      const analysisPromise = analyzeContent(content);
+
+      const [summary, analysis] = await Promise.all([
+        summaryPromise,
+        analysisPromise,
+      ]);
+
+      setSummaries((prev) => ({ ...prev, [postId]: summary }));
+      setAiAnalysis((prev) => ({ ...prev, [postId]: analysis }));
+
+      sonnerToast.success("Summary and analysis generated!", {
+        description:
+          "You can now listen to the quick summary and see the analysis.",
+      });
     } catch (error) {
-      console.error("Error generating AI insight:", error);
+      console.error("Error generating summary or analysis:", error);
+      sonnerToast.error("Failed to generate summary and analysis");
+    } finally {
+      setSummaryLoading((prev) => ({ ...prev, [postId]: false }));
     }
   };
 
-  // Function to like a post (mock)
+  const playAudio = useCallback(
+    (postId: string) => {
+      const summary = summaries[postId];
+      if (!summary) return;
+
+      // Stop any currently playing audio
+      if (speechSynthesisRef.current) {
+        speechSynthesisRef.current.cancel();
+      }
+      setIsSpeaking({});
+      setSpeechSynthesisError(null); // Clear any previous errors
+
+      // Start new speech
+      const utterance = new SpeechSynthesisUtterance(summary.substring(0, 300));
+      setCurrentUtterance(utterance); // Store the utterance
+
+      // Set voice if selected
+      if (selectedVoice !== "default") {
+        const voice = voices.find((v) => v.name === selectedVoice);
+        if (voice) {
+          utterance.voice = voice;
+        } else {
+          console.warn(`Voice "${selectedVoice}" not found.`);
+        }
+      } else if (targetVoiceName !== "default") {
+        // Use the default female voice.
+        const femaleVoice = voices.find(
+          (v) =>
+            v.name.toLowerCase().includes("female") ||
+            v.name === targetVoiceName
+        );
+        if (femaleVoice) {
+          utterance.voice = femaleVoice;
+          setSelectedVoice(femaleVoice.name); // update the dropdown
+        }
+      }
+
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => {
+        setIsSpeaking((prev) => ({ ...prev, [postId]: true }));
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking((prev) => ({ ...prev, [postId]: false }));
+        setCurrentUtterance(null); // Clear the utterance
+      };
+
+      utterance.onerror = (event) => {
+        setIsSpeaking((prev) => ({ ...prev, [postId]: false }));
+        setCurrentUtterance(null); // Clear the utterance
+        console.error("Error during speech:", event); // Log the error
+        setSpeechSynthesisError(event.error); // set the error
+        sonnerToast.error("Error playing audio");
+      };
+
+      try {
+        if (speechSynthesisRef.current) {
+          speechSynthesisRef.current.speak(utterance);
+        }
+      } catch (error) {
+        console.error("Error calling speak: ", error);
+        setSpeechSynthesisError("Error starting speech.");
+        sonnerToast.error("Error playing audio.");
+      }
+    },
+    [voices, selectedVoice, summaries]
+  );
+
+  const stopAudio = () => {
+    if (speechSynthesisRef.current && currentUtterance) {
+      speechSynthesisRef.current.cancel();
+      setIsSpeaking({});
+      setCurrentUtterance(null); // Clear the utterance here as well
+    }
+  };
+
   const handleLikePost = (postId: string) => {
     sonnerToast.success("Post liked!", {
       description: "Your like has been recorded",
     });
   };
 
-  // Function to bookmark a post (mock)
   const handleBookmarkPost = (postId: string) => {
     sonnerToast.success("Post bookmarked!", {
       description: "Added to your saved items",
     });
   };
 
-  // Function for post item without animations
   const PostItem = ({ post }: { post: Post }) => {
     const formattedDate = post.createdAt
       ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })
@@ -134,6 +293,12 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
 
     return (
       <div className='w-full max-w-2xl mx-auto mb-8'>
+        <audio
+          ref={(el) => (audioRefs.current[post._id] = el)}
+          src={audioUrls[post._id]}
+          className='hidden'
+        />
+
         <Card className='overflow-hidden border shadow-md'>
           <div className='p-4 border-b flex items-center justify-between'>
             <div className='flex items-center space-x-3'>
@@ -152,7 +317,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
             </div>
           </div>
 
-          {/* Post image */}
           {post.coverImage && (
             <div className='relative aspect-square overflow-hidden bg-muted'>
               <img
@@ -163,7 +327,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
             </div>
           )}
 
-          {/* Action buttons */}
           <div className='p-4 flex items-center justify-between'>
             <div className='flex items-center space-x-4'>
               <Button
@@ -201,7 +364,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
             </Button>
           </div>
 
-          {/* Content */}
           <CardContent className='pb-6'>
             <Link to={`/posts/${post._id}`}>
               <h3 className='text-xl font-bold mb-2 font-serif hover:text-primary transition-colors'>
@@ -212,38 +374,132 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
               {post.excerpt || post.content}
             </p>
 
-            {/* AI Analysis */}
-            {aiAnalysis[post._id] && (
-              <div className='mt-4 p-3 bg-secondary/10 rounded-lg border border-secondary/20'>
-                <p className='text-xs font-medium text-secondary-foreground mb-1'>
-                  AI Analysis
-                </p>
-                <div className='space-y-2'>
-                  <p className='text-sm'>
-                    <span className='font-medium'>Insight:</span>{" "}
-                    {aiAnalysis[post._id].insight}
-                  </p>
-                  <p className='text-sm'>
-                    <span className='font-medium'>Sentiment:</span>{" "}
-                    <span
-                      className={
-                        aiAnalysis[post._id].sentiment === "positive"
-                          ? "text-green-500"
-                          : aiAnalysis[post._id].sentiment === "negative"
-                          ? "text-red-500"
-                          : "text-blue-500"
-                      }
+            {/* Quick Summary Section */}
+            <div className='mt-4 mb-4'>
+              <div className='flex items-center justify-between mb-2'>
+                <h4 className='font-medium text-sm flex items-center'>
+                  <Sparkles className='h-4 w-4 mr-2 text-yellow-500' />
+                  Quick Summary
+                </h4>
+                {summaries[post._id] && (
+                  <div className='flex items-center gap-2'>
+                    <Select
+                      value={selectedVoice}
+                      onValueChange={(value) => {
+                        setSelectedVoice(value);
+                      }}
+                      disabled={!voicesLoaded || voicesLoading}
                     >
-                      {aiAnalysis[post._id].sentiment}
-                    </span>
-                  </p>
-                  <p className='text-sm'>
-                    <span className='font-medium'>Topics:</span>{" "}
-                    {aiAnalysis[post._id].topics.join(", ")}
-                  </p>
-                </div>
+                      <SelectTrigger className='w-[120px] h-8'>
+                        <SelectValue
+                          placeholder={
+                            voicesLoading
+                              ? "Loading..."
+                              : voicesLoaded
+                              ? "Voice"
+                              : "Unavailable"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {voicesLoaded ? (
+                          voices.map((voice) => (
+                            <SelectItem key={voice.name} value={voice.name}>
+                              {voice.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value='unavailable' disabled>
+                            Voices Unavailable
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {isSpeaking[post._id] ? (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={stopAudio}
+                        className='text-sm'
+                      >
+                        <VolumeX className='h-4 w-4 mr-1' />
+                        Stop
+                      </Button>
+                    ) : (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={() => playAudio(post._id)}
+                        className='text-sm'
+                        disabled={!voicesLoaded || voicesLoading}
+                      >
+                        <Volume2 className='h-4 w-4 mr-1' />
+                        Listen
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+
+              {summaries[post._id] ? (
+                <div>
+                  <div className='p-3 bg-secondary/10 rounded-lg border border-secondary/20'>
+                    <p className='text-sm'>{summaries[post._id]}</p>
+                  </div>
+                  <div className='mt-4 p-3 bg-secondary/10 rounded-lg border border-secondary/20'>
+                    {" "}
+                    <p className='text-xs font-medium text-secondary-foreground mb-1'>
+                      AI Analysis
+                    </p>
+                    <div className='space-y-2'>
+                      <p className='text-sm'>
+                        <span className='font-medium'>Insight:</span>{" "}
+                        {aiAnalysis[post._id]?.insight || "N/A"}
+                      </p>
+                      <p className='text-sm'>
+                        <span className='font-medium'>Sentiment:</span>{" "}
+                        <span
+                          className={
+                            aiAnalysis[post._id]?.sentiment === "positive"
+                              ? "text-green-500"
+                              : aiAnalysis[post._id]?.sentiment === "negative"
+                              ? "text-red-500"
+                              : "text-blue-500"
+                          }
+                          style={{ textTransform: "capitalize" }}
+                        >
+                          {aiAnalysis[post._id]?.sentiment || "N/A"}
+                        </span>
+                      </p>
+                      <p className='text-sm'>
+                        <span className='font-medium'>Topics:</span>{" "}
+                        {aiAnalysis[post._id]?.topics.join(", ") || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => handleGenerateSummary(post._id, post.content)}
+                  disabled={summaryLoading[post._id]}
+                  className='w-full'
+                >
+                  {summaryLoading[post._id] ? (
+                    <>
+                      <Loader2 className='h-4 w-4 mr-2 animate-spin' />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className='h-4 w-4 mr-2' />
+                      Generate Quick Summary
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
 
             <div className='mt-4'>
               <Link
@@ -259,7 +515,6 @@ const InstagramStyleFeed = ({ initialPosts = [] }: InstagramStyleFeedProps) => {
     );
   };
 
-  // Update the return statement at the bottom of the component to show a better "caught up" message
   return (
     <div className='instagram-style-feed w-full mx-auto py-6'>
       <div className='flex flex-col items-center pb-20'>
