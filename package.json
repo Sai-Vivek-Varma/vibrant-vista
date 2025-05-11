@@ -1,0 +1,16 @@
+{
+  "name": "vibrant-vista-blog",
+  "version": "1.0.0",
+  "description": "A modern blog application with AI features",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "preview": "npm run preview -w client",
+    "server": "npm run dev -w server"
+  }
+}
