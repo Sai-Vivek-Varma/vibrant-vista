@@ -3,8 +3,11 @@ import { Button } from '@/components/ui/button';
 import { ThumbsUp, Bookmark, BookmarkCheck, Share } from 'lucide-react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+import { toast as sonnerToast } from 'sonner';
 
 interface InteractiveFooterProps {
+  postId: string;
   hasLiked: boolean;
   likes: number;
   isBookmarked: boolean;
@@ -14,6 +17,7 @@ interface InteractiveFooterProps {
 }
 
 const InteractiveFooter = ({
+  postId,
   hasLiked,
   likes,
   isBookmarked,
@@ -23,8 +27,10 @@ const InteractiveFooter = ({
 }: InteractiveFooterProps) => {
   const { user } = useAuthContext();
   const { toast } = useToast();
+  const [isLiking, setIsLiking] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
   
-  const handleLikeClick = () => {
+  const handleLikeClick = async () => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -34,11 +40,90 @@ const InteractiveFooter = ({
       return;
     }
     
-    onLikeClick();
+    setIsLiking(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to like post');
+      }
+      
+      const data = await response.json();
+      onLikeClick();
+      
+      sonnerToast.success(data.liked ? 'Post liked!' : 'Post unliked', {
+        description: data.liked ? 'Thanks for your feedback!' : 'Your like has been removed',
+      });
+      
+    } catch (error) {
+      console.error('Error liking post:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLiking(false);
+    }
   };
   
-  const handleBookmarkClick = () => {
-    onBookmarkClick();
+  const handleBookmarkClick = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to bookmark posts",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsBookmarking(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts/${postId}/bookmark`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to bookmark post');
+      }
+      
+      const data = await response.json();
+      onBookmarkClick();
+      
+      sonnerToast.success(data.bookmarked ? 'Post bookmarked!' : 'Bookmark removed', {
+        description: data.bookmarked ? 'Added to your saved items' : 'Removed from your saved items',
+      });
+      
+    } catch (error) {
+      console.error('Error bookmarking post:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+  
+  const handleShareClick = () => {
+    // Copy the post URL to clipboard
+    const postUrl = `${window.location.origin}/posts/${postId}`;
+    navigator.clipboard.writeText(postUrl);
+    
+    sonnerToast.success('Link copied!', {
+      description: 'Post link copied to clipboard',
+    });
+    
+    onShareClick();
   };
   
   return (
@@ -48,6 +133,7 @@ const InteractiveFooter = ({
           variant={hasLiked ? "default" : "outline"} 
           onClick={handleLikeClick}
           className="flex items-center gap-2"
+          disabled={isLiking}
         >
           <ThumbsUp size={18} className={hasLiked ? 'fill-white' : ''} />
           <span>{hasLiked ? 'You liked this post' : 'Like this post'}</span>
@@ -60,6 +146,7 @@ const InteractiveFooter = ({
           variant={isBookmarked ? "default" : "outline"} 
           onClick={handleBookmarkClick}
           className="flex items-center gap-2"
+          disabled={isBookmarking}
         >
           {isBookmarked ? (
             <>
@@ -74,7 +161,7 @@ const InteractiveFooter = ({
           )}
         </Button>
         
-        <Button variant="outline" onClick={onShareClick} className="flex items-center gap-2">
+        <Button variant="outline" onClick={handleShareClick} className="flex items-center gap-2">
           <Share size={18} />
           <span>Share with friends</span>
         </Button>

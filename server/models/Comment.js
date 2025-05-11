@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const commentSchema = new mongoose.Schema(
@@ -17,6 +18,36 @@ const commentSchema = new mongoose.Schema(
       required: true,
       ref: "Post",
     },
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      }
+    ],
+    replies: [
+      {
+        content: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        author: {
+          type: mongoose.Schema.Types.ObjectId,
+          required: true,
+          ref: "User",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        likes: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          }
+        ]
+      }
+    ]
   },
   {
     timestamps: true,

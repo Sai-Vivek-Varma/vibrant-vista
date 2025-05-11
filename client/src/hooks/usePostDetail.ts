@@ -1,14 +1,16 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Post } from '@/types/post';
-import { isPostBookmarked, isPostLiked } from '@/utils/postUtils';
+import { isPostBookmarked, isPostLiked, togglePostBookmark, togglePostLike } from '@/utils/postUtils';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 export const usePostDetail = (id: string | undefined) => {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [likes, setLikes] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
+  const { user } = useAuthContext();
   
   // Fetch post data using React Query
   const { 
@@ -30,7 +32,16 @@ export const usePostDetail = (id: string | undefined) => {
         throw new Error('Failed to fetch post');
       }
       
-      return response.json();
+      const postData = await response.json();
+      
+      // Update likes and bookmark status directly from the server data
+      if (user && postData) {
+        setHasLiked(postData.likes?.includes(user._id) || false);
+        setLikes(postData.likes?.length || 0);
+        setIsBookmarked(postData.bookmarks?.includes(user._id) || false);
+      }
+      
+      return postData;
     },
     enabled: !!id
   });
@@ -47,9 +58,15 @@ export const usePostDetail = (id: string | undefined) => {
           
           const data = await response.json();
           // Filter out current post and limit to 2 posts
-          setRelatedPosts(
-            data.filter((p: Post) => p._id !== post._id).slice(0, 2)
-          );
+          if (Array.isArray(data)) {
+            setRelatedPosts(
+              data.filter((p: Post) => p._id !== post._id).slice(0, 2)
+            );
+          } else if (data.posts) {
+            setRelatedPosts(
+              data.posts.filter((p: Post) => p._id !== post._id).slice(0, 2)
+            );
+          }
         } catch (error) {
           console.error('Error fetching related posts:', error);
         }
@@ -59,19 +76,43 @@ export const usePostDetail = (id: string | undefined) => {
     }
   }, [post]);
 
-  // Initialize random likes count
+  // Initialize like and bookmark state when post or user changes
   useEffect(() => {
-    if (post) {
-      // Generate random number of likes between 5 and 50
-      setLikes(Math.floor(Math.random() * 45) + 5);
-      
-      // Check if user has bookmarked this post
-      setIsBookmarked(isPostBookmarked(post._id));
-      
-      // Check if user has liked this post
+    if (post && user) {
+      // Check if user has liked/bookmarked from the server data
+      setHasLiked(post.likes?.includes(user._id) || false);
+      setLikes(post.likes?.length || 0);
+      setIsBookmarked(post.bookmarks?.includes(user._id) || false);
+    } else if (post) {
+      // If no user, initialize with local data
+      setLikes(post.likes?.length || 0);
       setHasLiked(isPostLiked(post._id));
+      setIsBookmarked(isPostBookmarked(post._id));
     }
-  }, [post]);
+  }, [post, user]);
+  
+  const handleLikeToggle = useCallback(() => {
+    if (!post) return;
+    
+    setHasLiked(prev => !prev);
+    setLikes(prev => hasLiked ? prev - 1 : prev + 1);
+    
+    // Update local storage for non-authenticated users
+    if (!user) {
+      togglePostLike(post._id);
+    }
+  }, [post, hasLiked, user]);
+  
+  const handleBookmarkToggle = useCallback(() => {
+    if (!post) return;
+    
+    setIsBookmarked(prev => !prev);
+    
+    // Update local storage for non-authenticated users
+    if (!user) {
+      togglePostBookmark(post._id);
+    }
+  }, [post, user]);
   
   const refreshComments = async () => {
     await refetch();
@@ -88,6 +129,8 @@ export const usePostDetail = (id: string | undefined) => {
     hasLiked,
     setHasLiked,
     relatedPosts,
-    refreshComments
+    refreshComments,
+    handleLikeToggle,
+    handleBookmarkToggle
   };
 };
