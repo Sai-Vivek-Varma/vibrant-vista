@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CommentType } from '@/types/comment';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface CommentProps {
   comment: CommentType;
@@ -18,6 +19,7 @@ const Comment = ({ comment, postId, onCommentUpdated }: CommentProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(comment.content);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { user } = useAuthContext();
   const { toast } = useToast();
   
@@ -39,7 +41,7 @@ const Comment = ({ comment, postId, onCommentUpdated }: CommentProps) => {
     
     try {
       // Make API request to update comment
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts/${postId}/comments/${comment._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com"}/api/posts/${postId}/comments/${comment._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -71,13 +73,9 @@ const Comment = ({ comment, postId, onCommentUpdated }: CommentProps) => {
   };
   
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this comment?')) {
-      return;
-    }
-    
     try {
       // Make API request to delete comment
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts/${postId}/comments/${comment._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com"}/api/posts/${postId}/comments/${comment._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -159,7 +157,7 @@ const Comment = ({ comment, postId, onCommentUpdated }: CommentProps) => {
                 Edit
               </button>
               <button 
-                onClick={handleDelete} 
+                onClick={() => setIsDeleteDialogOpen(true)} 
                 className="text-xs font-medium text-destructive hover:text-destructive/80 transition-colors"
               >
                 Delete
@@ -168,6 +166,24 @@ const Comment = ({ comment, postId, onCommentUpdated }: CommentProps) => {
           )}
         </>
       )}
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Comment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this comment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

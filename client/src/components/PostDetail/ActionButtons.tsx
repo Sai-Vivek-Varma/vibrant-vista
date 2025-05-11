@@ -1,5 +1,4 @@
 
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThumbsUp, Share, Edit, Bookmark, BookmarkCheck } from 'lucide-react';
@@ -56,6 +55,15 @@ const ActionButtons = ({
   };
   
   const handleToggleBookmark = () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to bookmark posts",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const newIsBookmarked = toggleBookmarkPost(postId);
     onBookmarkToggle(newIsBookmarked);
     

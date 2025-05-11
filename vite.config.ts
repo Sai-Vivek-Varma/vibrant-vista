@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import path from "path";
 
@@ -8,5 +9,6 @@ export default defineConfig({
   },
   server: {
     open: true,
+    port: 8080
   },
 });
