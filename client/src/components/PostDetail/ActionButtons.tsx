@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThumbsUp, Share, Edit, Bookmark, BookmarkCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { toggleBookmarkPost, toggleLikePost, sharePost } from '@/utils/postUtils';
+import { togglePostBookmark, togglePostLike, sharePost } from '@/utils/postUtils';
 import { useAuthContext } from '@/contexts/AuthContext';
 
 interface ActionButtonsProps {
@@ -42,7 +42,7 @@ const ActionButtons = ({
       return;
     }
     
-    const newHasLiked = toggleLikePost(postId);
+    const newHasLiked = togglePostLike(postId);
     const newLikes = hasLiked ? likes - 1 : likes + 1;
     onLikeToggle(newHasLiked, newLikes);
     
@@ -64,7 +64,7 @@ const ActionButtons = ({
       return;
     }
     
-    const newIsBookmarked = toggleBookmarkPost(postId);
+    const newIsBookmarked = togglePostBookmark(postId);
     onBookmarkToggle(newIsBookmarked);
     
     toast({
