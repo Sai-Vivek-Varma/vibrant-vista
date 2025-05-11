@@ -6,7 +6,7 @@
 /**
  * Toggle bookmark status for a post
  */
-export const toggleBookmarkPost = (postId: string): boolean => {
+export const togglePostBookmark = (postId: string): boolean => {
   const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
   let updatedBookmarks;
   const isCurrentlyBookmarked = bookmarks.includes(postId);
@@ -24,7 +24,7 @@ export const toggleBookmarkPost = (postId: string): boolean => {
 /**
  * Toggle like status for a post
  */
-export const toggleLikePost = (postId: string): boolean => {
+export const togglePostLike = (postId: string): boolean => {
   const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
   let updatedLikedPosts;
   const hasLiked = likedPosts.includes(postId);
@@ -108,3 +108,7 @@ export const renderPostContent = (content: string) => {
   
   return paragraphs;
 };
+
+// For backward compatibility
+export const toggleBookmarkPost = togglePostBookmark;
+export const toggleLikePost = togglePostLike;
