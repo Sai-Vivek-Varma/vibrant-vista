@@ -1,4 +1,3 @@
-
 @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap");
 
 @tailwind base;
@@ -126,36 +125,36 @@
   .heading-gradient {
     @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
   }
-  
+
   /* Instagram-style feed styles - improved */
   .instagram-style-feed {
     @apply max-w-3xl mx-auto;
     scrollbar-width: thin;
   }
-  
+
   .fixed-page-container {
     height: calc(100vh - 64px); /* Adjust based on your navbar height */
     @apply overflow-hidden;
   }
-  
+
   .fixed-page-container .container {
     height: 100%;
     @apply overflow-hidden;
   }
-  
+
   /* Enhanced Instagram feed styles */
   .instagram-post-card {
     @apply w-full max-w-2xl mx-auto mb-8;
   }
-  
+
   .sentiment-positive {
     @apply text-green-500;
   }
-  
+
   .sentiment-negative {
     @apply text-red-500;
   }
-  
+
   .sentiment-neutral {
     @apply text-blue-500;
   }

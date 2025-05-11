@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import PostCard from "@/components/PostCard";
@@ -20,22 +19,25 @@ const InfinitePostFeed = ({ initialPosts = [] }: InfinitePostFeedProps) => {
 
   const loadMorePosts = useCallback(async () => {
     if (isLoading || !hasMore) return;
-    
+
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com"}/api/posts?page=${page}&limit=6`
+        `${
+          import.meta.env.VITE_API_URL ||
+          "https://vibrant-vista-sa5w.onrender.com"
+        }/api/posts?page=${page}&limit=6`
       );
-      
+
       if (!response.ok) throw new Error("Failed to fetch posts");
-      
+
       const newPosts = await response.json();
-      
+
       if (newPosts.length === 0) {
         setHasMore(false);
       } else {
-        setPosts(prevPosts => [...prevPosts, ...newPosts]);
-        setPage(prevPage => prevPage + 1);
+        setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+        setPage((prevPage) => prevPage + 1);
       }
     } catch (error) {
       console.error("Error fetching posts:", error);
@@ -51,7 +53,7 @@ const InfinitePostFeed = ({ initialPosts = [] }: InfinitePostFeedProps) => {
 
   useEffect(() => {
     if (!loadingRef.current) return;
-    
+
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
@@ -74,22 +76,19 @@ const InfinitePostFeed = ({ initialPosts = [] }: InfinitePostFeedProps) => {
   }, [loadMorePosts, isLoading]);
 
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className='w-full'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
         {posts.map((post) => (
           <PostCard key={post._id} post={post} />
         ))}
       </div>
-      
-      <div 
-        ref={loadingRef} 
-        className="w-full flex justify-center py-8"
-      >
-        {isLoading && (
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        )}
+
+      <div ref={loadingRef} className='w-full flex justify-center py-8'>
+        {isLoading && <Loader2 className='h-8 w-8 animate-spin text-primary' />}
         {!hasMore && posts.length > 0 && (
-          <p className="text-muted-foreground text-center">No more posts to show</p>
+          <p className='text-muted-foreground text-center'>
+            No more posts to show
+          </p>
         )}
       </div>
     </div>

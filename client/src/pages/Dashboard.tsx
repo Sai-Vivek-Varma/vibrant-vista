@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import PostEditor from "@/components/PostEditor";
 
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com";
+
 const Dashboard = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,35 +28,43 @@ const Dashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Define fetchUserPosts properly as a function inside the component
+  const fetchUserPosts = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+
+      // Fetch only posts by the current user
+      const postsResponse = await fetch(
+        `${API_BASE}/api/posts/user/${user._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!postsResponse.ok) throw new Error("Failed to fetch posts");
+      const postsData = await postsResponse.json();
+      setPosts(postsData);
+    } catch (error) {
+      console.error("Fetch error:", error);
+      toast({
+        title: "Error loading posts",
+        description: "Couldn't fetch your posts from the server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       navigate("/login");
       return;
     }
-
-    const fetchUserPosts = async () => {
-      try {
-        setIsLoading(true);
-        const PostsResponse = await fetch(
-          `${
-            import.meta.env.VITE_API_URL ||
-            "https://vibrant-vista-sa5w.onrender.com"
-          }/api/posts`
-        );
-        if (!PostsResponse.ok) throw new Error("Failed to fetch posts");
-        const PostsData = await PostsResponse.json();
-        setPosts(PostsData);
-      } catch (error) {
-        console.error("Fetch error:", error);
-        toast({
-          title: "Error loading posts",
-          description: "Couldn't fetch posts from the server",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
     fetchUserPosts();
   }, [user, navigate, toast]);
@@ -64,13 +75,22 @@ const Dashboard = () => {
     }
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await fetch(`${API_BASE}/api/posts/${postId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete post");
+
       setPosts(posts.filter((post) => post._id !== postId));
       toast({
         title: "Post Deleted",
         description: "Your post has been successfully deleted.",
       });
     } catch (error) {
+      console.error("Delete error:", error);
       toast({
         title: "Delete Failed",
         description: "Failed to delete the post. Please try again.",
