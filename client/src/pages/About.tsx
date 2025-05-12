@@ -12,34 +12,26 @@ const About = () => {
       name: "Sai Vivek Varma",
       role: "Founder & Editor-in-Chief",
       bio: "Vivek founded VibrantVista in 2025 with a vision to create a platform where passionate writers could share their ideas with the world.",
-      image:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=2070&auto=format&fit=crop",
-    },
-    {
-      name: "Sai Vivek Varma",
-      role: "Founder & Editor-in-Chief",
-      bio: "Vivek founded VibrantVista in 2025 with a vision to create a platform where passionate writers could share their ideas with the world.",
-      image:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=2070&auto=format&fit=crop",
+      image: "",
     },
   ];
 
   // Timeline items
   const timelineItems = [
     {
-      year: 2023,
+      year: 2025,
       title: "VibrantVista Launches",
       description:
         "Our platform goes live with a focus on technology and lifestyle content.",
     },
     {
-      year: 2023,
+      year: 2025,
       title: "First 10,000 Readers",
       description:
         "We reach our first major milestone with 10,000 monthly active readers.",
     },
     {
-      year: 2024,
+      year: 2025,
       title: "Community Features",
       description:
         "Launch of comments, bookmarks, and user profiles to foster community engagement.",
