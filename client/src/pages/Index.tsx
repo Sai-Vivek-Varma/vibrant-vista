@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import FeaturedPost from "@/components/FeaturedPost";
@@ -8,7 +8,7 @@ import PostCard from "@/components/PostCard";
 import NewsletterForm from "@/components/NewsletterForm";
 import InstagramStyleFeed from "@/components/InstagramStyleFeed";
 import type { Post } from "@/types/post";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -84,6 +84,7 @@ const Index = () => {
       icon: "📚",
     },
   ]);
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const [newCategory, setNewCategory] = useState({
@@ -92,6 +93,17 @@ const Index = () => {
     image: "",
     icon: "🔍",
   });
+  const [suggestedUsers, setSuggestedUsers] = useState<
+    {
+      email: ReactNode;
+      _id: string;
+      name: string;
+      username: string;
+      avatar?: string;
+      bio?: string;
+    }[]
+  >([]);
+  const [isLoadingSuggested, setIsLoadingSuggested] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuthContext();
@@ -144,7 +156,142 @@ const Index = () => {
     };
 
     fetchPosts();
-  }, [toast]);
+
+    const fetchSuggestedUsers = async () => {
+      if (!user) return; // Only fetch if user is logged in
+
+      try {
+        setIsLoadingSuggested(true);
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_API_URL || "http://localhost:5000"
+          }/api/users/suggested/follow`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch suggested users");
+
+        const data = await response.json();
+        setSuggestedUsers(data);
+      } catch (error) {
+        console.error("Error fetching suggested users:", error);
+        toast({
+          title: "Error",
+          description: "Couldn't load suggested users",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingSuggested(false);
+      }
+    };
+
+    fetchSuggestedUsers();
+  }, [user, toast]);
+
+  const WhoToFollow = () => (
+    <div className='bg-card rounded-xl p-4 border border-border shadow-sm'>
+      <h3 className='text-base font-bold mb-3'>Who to follow</h3>
+      {isLoadingSuggested ? (
+        <div className='space-y-3'>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <div className='w-8 h-8 rounded-full bg-muted animate-pulse'></div>
+                <div className='space-y-1'>
+                  <div className='h-3 w-20 bg-muted rounded animate-pulse'></div>
+                  <div className='h-2 w-16 bg-muted rounded animate-pulse'></div>
+                </div>
+              </div>
+              <div className='h-7 w-16 bg-muted rounded-md animate-pulse'></div>
+            </div>
+          ))}
+        </div>
+      ) : suggestedUsers.length > 0 ? (
+        <div className='space-y-3'>
+          {suggestedUsers.map((user) => (
+            <div key={user._id} className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <div className='w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium'>
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className='w-full h-full rounded-full object-cover'
+                    />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </div>
+                <div>
+                  <p className='text-sm font-medium'>{user.name}</p>
+                  {/* <p className='text-xs text-muted-foreground'>@{user.email}</p> */}
+                </div>
+              </div>
+              <Button
+                variant='outline'
+                size='sm'
+                className='h-7 text-xs'
+                onClick={() => handleFollowUser(user._id)}
+              >
+                Follow
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className='text-sm text-muted-foreground'>
+          No suggestions available
+        </p>
+      )}
+    </div>
+  );
+
+  // Add this handler for the follow button
+  const handleFollowUser = async (userId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:5000"
+        }/api/users/follow/${userId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to follow user");
+
+      // Update the UI by removing the followed user from suggestions
+      setSuggestedUsers(suggestedUsers.filter((user) => user._id !== userId));
+
+      toast({
+        title: "Success",
+        description: "You're now following this user",
+      });
+    } catch (error) {
+      console.error("Follow error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to follow user",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleCreateSpace = () => {
     if (!newCategory.name.trim()) {
@@ -344,42 +491,7 @@ const Index = () => {
                   </div> */}
 
                   {/* Who to follow */}
-                  <div className='bg-card rounded-xl p-4 border border-border shadow-sm'>
-                    <h3 className='text-base font-bold mb-3'>Who to follow</h3>
-                    <div className='space-y-3'>
-                      {[
-                        { name: "Alex Johnson", role: "Tech Writer" },
-                        { name: "Sarah Miller", role: "Health Expert" },
-                        { name: "David Chen", role: "Travel Blogger" },
-                      ].map((person) => (
-                        <div
-                          key={person.name}
-                          className='flex items-center justify-between'
-                        >
-                          <div className='flex items-center gap-2'>
-                            <div className='w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium'>
-                              {person.name.charAt(0)}
-                            </div>
-                            <div>
-                              <p className='text-sm font-medium'>
-                                {person.name}
-                              </p>
-                              <p className='text-xs text-muted-foreground'>
-                                {person.role}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-7 text-xs'
-                          >
-                            Follow
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <WhoToFollow />
 
                   {/* Settings and help */}
                   {/* <div className='bg-card rounded-xl p-4 border border-border shadow-sm'>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
@@ -8,7 +7,17 @@ import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Post } from "@/types/post";
-import { Edit, Trash, Plus, BarChart2, MessageSquare, Eye, Heart, User, Users } from "lucide-react";
+import {
+  Edit,
+  Trash,
+  Plus,
+  BarChart2,
+  MessageSquare,
+  Eye,
+  Heart,
+  User,
+  Users,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +38,7 @@ const Dashboard = () => {
     commentCount: 0,
     likeCount: 0,
     followerCount: 0,
-    followingCount: 0
+    followingCount: 0,
   });
   const { user } = useAuthContext();
   const { toast } = useToast();
@@ -44,15 +53,15 @@ const Dashboard = () => {
 
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        navigate('/login');
+        navigate("/login");
         return;
       }
 
       // Fetch user stats
       const statsResponse = await fetch(`${API_BASE}/api/users/me/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (statsResponse.ok) {
@@ -64,7 +73,7 @@ const Dashboard = () => {
 
       // Fetch user's posts
       const postsResponse = await fetch(
-        `${API_BASE}/api/users/me/posts`,
+        `${API_BASE}/api/users/${user._id}/posts`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -79,7 +88,8 @@ const Dashboard = () => {
       console.error("Fetch error:", error);
       toast({
         title: "Error loading data",
-        description: "Couldn't fetch your data from the server. Please try again.",
+        description:
+          "Couldn't fetch your data from the server. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -102,12 +112,12 @@ const Dashboard = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        navigate('/login');
+        navigate("/login");
         return;
       }
-      
+
       const response = await fetch(`${API_BASE}/api/posts/${postId}`, {
         method: "DELETE",
         headers: {
@@ -118,13 +128,13 @@ const Dashboard = () => {
       if (!response.ok) throw new Error("Failed to delete post");
 
       setPosts(posts.filter((post) => post._id !== postId));
-      
+
       // Update stats
-      setUserStats(prev => ({
+      setUserStats((prev) => ({
         ...prev,
-        postCount: prev.postCount - 1
+        postCount: prev.postCount - 1,
       }));
-      
+
       toast({
         title: "Post Deleted",
         description: "Your post has been successfully deleted.",
@@ -165,7 +175,10 @@ const Dashboard = () => {
             <h1 className='text-xl sm:text-2xl font-bold font-serif'>
               Your Dashboard
             </h1>
-            <Button onClick={handleNewPost} className='flex items-center gap-2 h-9'>
+            <Button
+              onClick={handleNewPost}
+              className='flex items-center gap-2 h-9'
+            >
               <Plus size={16} />
               <span>New Post</span>
             </Button>
@@ -259,16 +272,16 @@ const Dashboard = () => {
                         <span className='inline-block w-1.5 h-1.5 rounded-full bg-secondary'></span>
                         {post.category}
                       </span>
-                      <span className="flex items-center gap-1">
+                      <span className='flex items-center gap-1'>
                         <Eye size={12} />
                         {post.views || 0}
                       </span>
-                      <span className="flex items-center gap-1">
+                      <span className='flex items-center gap-1'>
                         <MessageSquare size={12} />
                         {post.comments?.length || post.commentsCount || 0}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Heart size={12} /> 
+                      <span className='flex items-center gap-1'>
+                        <Heart size={12} />
                         {post.likes || post.likesCount || 0}
                       </span>
                     </div>
@@ -305,7 +318,10 @@ const Dashboard = () => {
               <p className='text-muted-foreground mb-6 text-sm'>
                 Create your first post to share your thoughts with the world.
               </p>
-              <Button onClick={handleNewPost} className='h-9 flex items-center gap-2'>
+              <Button
+                onClick={handleNewPost}
+                className='h-9 flex items-center gap-2'
+              >
                 <Plus size={16} />
                 Create Your First Post
               </Button>
@@ -316,7 +332,11 @@ const Dashboard = () => {
 
       {/* Post Editor Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className={`${isMobile ? 'max-w-full h-full' : 'max-w-2xl h-[90vh]'} overflow-y-auto`}>
+        <DialogContent
+          className={`${
+            isMobile ? "max-w-full h-full" : "max-w-2xl h-[90vh]"
+          } overflow-y-auto`}
+        >
           <DialogHeader>
             <DialogTitle>
               {editingPostId ? "Edit Post" : "Create New Post"}

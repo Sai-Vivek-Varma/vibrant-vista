@@ -55,7 +55,7 @@ const Profile = () => {
 
         // Fetch user posts
         const postsResponse = await fetch(
-          `${API_BASE}/api/posts/user/${userData._id}`
+          `${API_BASE}/api/users/${user._id}/posts`
         );
         if (!postsResponse.ok) throw new Error("Failed to fetch user posts");
         const postsData = await postsResponse.json();

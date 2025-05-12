@@ -52,7 +52,7 @@ export const generateQuickSummary = async (
   content: string
 ): Promise<string> => {
   try {
-    const prompt = `Please generate a concise 2-3 sentence summary of the following content for quick understanding. Focus on the key points and main ideas:\n\n${content.substring(
+    const prompt = `Please generate a concise 10-15 sentence summary of the following content for quick understanding. Focus on the key points and main ideas:\n\n${content.substring(
       0,
       2000
     )}`;
@@ -73,7 +73,7 @@ export const analyzeContent = async (
     1. Key insight (1 sentence)
     2. Sentiment (positive, neutral, or negative)
     3. Main topics (2-3 keywords)
-    4. Brief summary (2 sentences)
+    4. Brief summary (6 sentences)
     
     Content: ${content.substring(0, 2000)}
     
