@@ -12,6 +12,7 @@
     "dev:server": "cd server && npm run dev",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "build": "cd client && npm run build",
+    "build:dev": "vite build --mode development",
     "start": "cd server && npm start"
   },
   "dependencies": {
