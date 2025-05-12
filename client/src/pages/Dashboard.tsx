@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Post } from "@/types/post";
-import { Edit, Trash, Plus, BarChart2, MessageSquare, Eye } from "lucide-react";
+import { Edit, Trash, Plus, BarChart2, MessageSquare, Eye, Heart, User, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,10 +24,12 @@ const Dashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [userStats, setUserStats] = useState({
-    totalPosts: 0,
-    totalViews: 0,
-    totalComments: 0,
-    totalLikes: 0
+    postCount: 0,
+    viewCount: 0,
+    commentCount: 0,
+    likeCount: 0,
+    followerCount: 0,
+    followingCount: 0
   });
   const { user } = useAuthContext();
   const { toast } = useToast();
@@ -42,13 +44,30 @@ const Dashboard = () => {
 
     try {
       setIsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
 
-      // Fetch only posts by the current user
+      // Fetch user stats
+      const statsResponse = await fetch(`${API_BASE}/api/users/me/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        setUserStats(statsData);
+      } else {
+        throw new Error("Failed to fetch user stats");
+      }
+
+      // Fetch user's posts
       const postsResponse = await fetch(
-        `${API_BASE}/api/users/${user._id}/posts`,
+        `${API_BASE}/api/users/me/posts`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -56,29 +75,11 @@ const Dashboard = () => {
       if (!postsResponse.ok) throw new Error("Failed to fetch posts");
       const postsData = await postsResponse.json();
       setPosts(postsData);
-      
-      // Calculate stats
-      let views = 0;
-      let comments = 0;
-      let likes = 0;
-      
-      postsData.forEach((post: Post) => {
-        views += post.views || 0;
-        comments += post.comments?.length || post.commentsCount || 0;
-        likes += post.likes || post.likesCount || 0;
-      });
-      
-      setUserStats({
-        totalPosts: postsData.length,
-        totalViews: views,
-        totalComments: comments,
-        totalLikes: likes
-      });
     } catch (error) {
       console.error("Fetch error:", error);
       toast({
-        title: "Error loading posts",
-        description: "Couldn't fetch your posts from the server",
+        title: "Error loading data",
+        description: "Couldn't fetch your data from the server. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -101,26 +102,33 @@ const Dashboard = () => {
     }
 
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
       const response = await fetch(`${API_BASE}/api/posts/${postId}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) throw new Error("Failed to delete post");
 
       setPosts(posts.filter((post) => post._id !== postId));
-      toast({
-        title: "Post Deleted",
-        description: "Your post has been successfully deleted.",
-      });
       
       // Update stats
       setUserStats(prev => ({
         ...prev,
-        totalPosts: prev.totalPosts - 1
+        postCount: prev.postCount - 1
       }));
+      
+      toast({
+        title: "Post Deleted",
+        description: "Your post has been successfully deleted.",
+      });
     } catch (error) {
       console.error("Delete error:", error);
       toast({
@@ -151,57 +159,83 @@ const Dashboard = () => {
     <div className='min-h-screen flex flex-col'>
       <Navbar />
 
-      <main className='flex-grow py-12'>
+      <main className='flex-grow py-8 sm:py-12'>
         <div className='container mx-auto px-4'>
           <div className='flex justify-between items-center mb-8'>
-            <h1 className='text-2xl md:text-3xl font-bold font-serif'>
+            <h1 className='text-xl sm:text-2xl font-bold font-serif'>
               Your Dashboard
             </h1>
-            <Button onClick={handleNewPost} className='flex items-center gap-2'>
-              <Plus size={18} />
+            <Button onClick={handleNewPost} className='flex items-center gap-2 h-9'>
+              <Plus size={16} />
               <span>New Post</span>
             </Button>
           </div>
 
           {/* User Stats Section */}
-          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8'>
-            <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
-              <h3 className='text-lg font-medium mb-2'>Total Posts</h3>
-              <p className='text-3xl font-bold'>{userStats.totalPosts}</p>
+          <div className='grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8'>
+            <div className='bg-white p-4 rounded-xl shadow-sm border border-border'>
+              <h3 className='text-sm font-medium mb-1'>Posts</h3>
+              <div className='flex items-center'>
+                <Edit size={16} className='mr-2 text-primary' />
+                <p className='text-xl font-bold'>{userStats.postCount}</p>
+              </div>
             </div>
-            <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
-              <h3 className='text-lg font-medium mb-2'>Total Views</h3>
-              <p className='text-3xl font-bold'>{userStats.totalViews}</p>
+            <div className='bg-white p-4 rounded-xl shadow-sm border border-border'>
+              <h3 className='text-sm font-medium mb-1'>Views</h3>
+              <div className='flex items-center'>
+                <Eye size={16} className='mr-2 text-blue-500' />
+                <p className='text-xl font-bold'>{userStats.viewCount}</p>
+              </div>
             </div>
-            <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
-              <h3 className='text-lg font-medium mb-2'>Total Comments</h3>
-              <p className='text-3xl font-bold'>{userStats.totalComments}</p>
+            <div className='bg-white p-4 rounded-xl shadow-sm border border-border'>
+              <h3 className='text-sm font-medium mb-1'>Comments</h3>
+              <div className='flex items-center'>
+                <MessageSquare size={16} className='mr-2 text-green-500' />
+                <p className='text-xl font-bold'>{userStats.commentCount}</p>
+              </div>
             </div>
-            <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
-              <h3 className='text-lg font-medium mb-2'>Total Likes</h3>
-              <p className='text-3xl font-bold'>{userStats.totalLikes}</p>
+            <div className='bg-white p-4 rounded-xl shadow-sm border border-border'>
+              <h3 className='text-sm font-medium mb-1'>Likes</h3>
+              <div className='flex items-center'>
+                <Heart size={16} className='mr-2 text-red-500' />
+                <p className='text-xl font-bold'>{userStats.likeCount}</p>
+              </div>
+            </div>
+            <div className='bg-white p-4 rounded-xl shadow-sm border border-border'>
+              <h3 className='text-sm font-medium mb-1'>Followers</h3>
+              <div className='flex items-center'>
+                <User size={16} className='mr-2 text-indigo-500' />
+                <p className='text-xl font-bold'>{userStats.followerCount}</p>
+              </div>
+            </div>
+            <div className='bg-white p-4 rounded-xl shadow-sm border border-border'>
+              <h3 className='text-sm font-medium mb-1'>Following</h3>
+              <div className='flex items-center'>
+                <Users size={16} className='mr-2 text-purple-500' />
+                <p className='text-xl font-bold'>{userStats.followingCount}</p>
+              </div>
             </div>
           </div>
 
-          <h2 className='text-xl font-bold mb-6'>Your Posts</h2>
+          <h2 className='text-lg font-bold mb-6'>Your Posts</h2>
 
           {isLoading ? (
-            <div className='space-y-6'>
+            <div className='space-y-4'>
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className='animate-pulse bg-white rounded-xl p-6 h-24 border border-border'
+                  className='animate-pulse bg-white rounded-xl p-4 h-20 border border-border'
                 ></div>
               ))}
             </div>
           ) : posts.length > 0 ? (
-            <div className='space-y-4'>
+            <div className='space-y-3'>
               {posts.map((post) => (
                 <div
                   key={post._id}
-                  className='bg-white p-4 sm:p-6 rounded-xl border border-border flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center'
+                  className='bg-white p-3 sm:p-4 rounded-lg border border-border flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center'
                 >
-                  <div className='w-full sm:w-20 h-20 rounded-lg overflow-hidden'>
+                  <div className='w-full sm:w-16 h-16 rounded-md overflow-hidden'>
                     <img
                       src={post.coverImage}
                       alt={post.title}
@@ -211,32 +245,31 @@ const Dashboard = () => {
 
                   <div className='flex-grow'>
                     <Link to={`/posts/${post._id}`}>
-                      <h3 className='font-bold font-serif hover:text-primary transition-colors'>
+                      <h3 className='text-sm sm:text-base font-bold font-serif hover:text-primary transition-colors'>
                         {post.title}
                       </h3>
                     </Link>
-                    <div className='flex flex-wrap items-center text-sm text-muted-foreground mt-1 gap-x-4 gap-y-2'>
+                    <div className='flex flex-wrap items-center text-xs text-muted-foreground mt-1 gap-x-3 gap-y-1'>
                       <span>
-                        Published{" "}
                         {formatDistanceToNow(new Date(post.createdAt), {
                           addSuffix: true,
                         })}
                       </span>
                       <span className='flex items-center gap-1'>
-                        <span className='inline-block w-2 h-2 rounded-full bg-secondary'></span>
+                        <span className='inline-block w-1.5 h-1.5 rounded-full bg-secondary'></span>
                         {post.category}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Eye size={14} />
-                        {post.views || 0} views
+                        <Eye size={12} />
+                        {post.views || 0}
                       </span>
                       <span className="flex items-center gap-1">
-                        <MessageSquare size={14} />
-                        {post.comments?.length || post.commentsCount || 0} comments
+                        <MessageSquare size={12} />
+                        {post.comments?.length || post.commentsCount || 0}
                       </span>
                       <span className="flex items-center gap-1">
-                        <BarChart2 size={14} /> 
-                        {post.likes || post.likesCount || 0} likes
+                        <Heart size={12} /> 
+                        {post.likes || post.likesCount || 0}
                       </span>
                     </div>
                   </div>
@@ -246,18 +279,18 @@ const Dashboard = () => {
                       variant='outline'
                       size='sm'
                       onClick={() => handleEditPost(post._id)}
-                      className='w-full sm:w-auto'
+                      className='h-8 text-xs flex items-center'
                     >
-                      <Edit size={16} className='mr-1' />
+                      <Edit size={14} className='mr-1' />
                       Edit
                     </Button>
                     <Button
                       variant='outline'
                       size='sm'
                       onClick={() => handleDeletePost(post._id)}
-                      className='w-full sm:w-auto text-destructive hover:text-destructive'
+                      className='h-8 text-xs flex items-center text-destructive hover:text-destructive'
                     >
-                      <Trash size={16} className='mr-1' />
+                      <Trash size={14} className='mr-1' />
                       Delete
                     </Button>
                   </div>
@@ -265,15 +298,15 @@ const Dashboard = () => {
               ))}
             </div>
           ) : (
-            <div className='bg-muted/30 rounded-xl p-12 text-center'>
-              <h3 className='text-lg font-medium mb-2'>
+            <div className='bg-muted/30 rounded-xl p-8 text-center'>
+              <h3 className='text-base font-medium mb-2'>
                 You haven't written any posts yet
               </h3>
-              <p className='text-muted-foreground mb-6'>
+              <p className='text-muted-foreground mb-6 text-sm'>
                 Create your first post to share your thoughts with the world.
               </p>
-              <Button onClick={handleNewPost}>
-                <Plus size={18} className='mr-2' />
+              <Button onClick={handleNewPost} className='h-9 flex items-center gap-2'>
+                <Plus size={16} />
                 Create Your First Post
               </Button>
             </div>

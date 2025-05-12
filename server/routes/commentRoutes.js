@@ -1,3 +1,4 @@
+
 import express from "express";
 import auth from "../middleware/auth.js";
 import {
@@ -9,11 +10,12 @@ import {
 
 const router = express.Router();
 
-router.get("/:id/comments", getComments);
+// Public routes
+router.get("/posts/:id/comments", getComments);
 
 // Protected routes
-router.post("/:id/comments", auth, addComment);
-router.put("/:postId/comments/:commentId", auth, updateComment);
-router.delete("/:postId/comments/:commentId", auth, deleteComment);
+router.post("/posts/:id/comments", auth, addComment);
+router.put("/posts/:postId/comments/:commentId", auth, updateComment);
+router.delete("/posts/:postId/comments/:commentId", auth, deleteComment);
 
 export default router;

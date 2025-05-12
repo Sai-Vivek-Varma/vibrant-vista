@@ -27,8 +27,9 @@ export const usePostDetail = (id: string | undefined) => {
         'Content-Type': 'application/json'
       };
       
-      if (localStorage.getItem('token')) {
-        headers.Authorization = `Bearer ${localStorage.getItem('token')}`;
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
       }
       
       const response = await fetch(`${API_BASE}/api/posts/${id}`, { headers });
@@ -39,7 +40,9 @@ export const usePostDetail = (id: string | undefined) => {
       
       return response.json();
     },
-    enabled: !!id
+    enabled: !!id,
+    retry: 1,
+    staleTime: 60000 // 1 minute
   });
 
   // Fetch related posts based on category
@@ -48,7 +51,7 @@ export const usePostDetail = (id: string | undefined) => {
       const fetchRelatedPosts = async () => {
         try {
           const response = await fetch(
-            `${API_BASE}/api/posts?category=${post.category}&limit=2`
+            `${API_BASE}/api/posts/categories/${post.category}/posts?limit=2`
           );
           if (!response.ok) throw new Error('Failed to fetch related posts');
           
@@ -82,11 +85,14 @@ export const usePostDetail = (id: string | undefined) => {
       if (user && id) {
         const checkLikeStatus = async () => {
           try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
             const response = await fetch(
               `${API_BASE}/api/posts/${id}/likes/check`,
               {
                 headers: {
-                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  'Authorization': `Bearer ${token}`
                 }
               }
             );

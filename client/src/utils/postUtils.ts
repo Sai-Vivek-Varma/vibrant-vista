@@ -8,20 +8,20 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onr
 /**
  * Toggle bookmark status for a post
  */
-export const toggleBookmarkPost = async (postId: string): Promise<boolean> => {
-  const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+export const toggleBookmarkPost = (postId: string): boolean => {
+  const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]') as string[];
   let updatedBookmarks;
   const isCurrentlyBookmarked = bookmarks.includes(postId);
   
   if (isCurrentlyBookmarked) {
-    updatedBookmarks = bookmarks.filter((id: string) => id !== postId);
+    updatedBookmarks = bookmarks.filter((id) => id !== postId);
   } else {
     updatedBookmarks = [...bookmarks, postId];
   }
   
   localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
   
-  // In a future version, this could also save to user profile on server
+  // Return the new bookmarked state
   return !isCurrentlyBookmarked;
 };
 
@@ -29,7 +29,7 @@ export const toggleBookmarkPost = async (postId: string): Promise<boolean> => {
  * Check if post is bookmarked
  */
 export const isPostBookmarked = (postId: string): boolean => {
-  const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+  const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]') as string[];
   return bookmarks.includes(postId);
 };
 
@@ -99,20 +99,31 @@ export const checkPostLikeStatus = async (postId: string, token?: string): Promi
  */
 export const sharePost = async (title: string, excerpt: string, url: string): Promise<boolean> => {
   if (navigator.share) {
-    return navigator.share({
-      title,
-      text: excerpt,
-      url,
-    })
-    .then(() => true)
-    .catch((error) => {
+    try {
+      await navigator.share({
+        title,
+        text: excerpt,
+        url,
+      });
+      return true;
+    } catch (error) {
       console.error('Error sharing:', error);
-      return false;
-    });
+      try {
+        await navigator.clipboard.writeText(url);
+        return true;
+      } catch (clipboardError) {
+        console.error('Clipboard error:', clipboardError);
+        return false;
+      }
+    }
   } else {
-    // Fallback
-    navigator.clipboard.writeText(url);
-    return Promise.resolve(true);
+    try {
+      await navigator.clipboard.writeText(url);
+      return true;
+    } catch (error) {
+      console.error('Clipboard error:', error);
+      return false;
+    }
   }
 };
 
@@ -182,7 +193,9 @@ export const fetchUserDashboardStats = async (userId: string, token: string) => 
       postCount: 0,
       viewCount: 0,
       commentCount: 0,
-      likeCount: 0
+      likeCount: 0,
+      followerCount: 0,
+      followingCount: 0
     };
   }
 };

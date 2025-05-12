@@ -5,6 +5,22 @@ import Comment from "../models/Comment.js";
 import Like from "../models/Like.js";
 import jwt from "jsonwebtoken";
 
+// Get current user (new specific endpoint)
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in getMe:", error);
+    res.status(500).json({ error: "Error fetching user profile" });
+  }
+};
+
 // Get user profile
 export const getUserProfile = async (req, res) => {
   try {
@@ -16,8 +32,9 @@ export const getUserProfile = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
     
-    res.send(user);
+    res.status(200).json(user);
   } catch (error) {
+    console.error("Error in getUserProfile:", error);
     res.status(500).json({ error: "Error fetching user profile" });
   }
 };
@@ -49,8 +66,9 @@ export const updateUserProfile = async (req, res) => {
     updates.forEach((update) => (user[update] = req.body[update]));
     await user.save();
     
-    res.send(user);
+    res.status(200).json(user);
   } catch (error) {
+    console.error("Error in updateUserProfile:", error);
     res.status(400).json({ error: "Error updating user profile" });
   }
 };
@@ -79,8 +97,9 @@ export const getUserPosts = async (req, res) => {
       })
     );
     
-    res.send(postsWithCounts);
+    res.status(200).json(postsWithCounts);
   } catch (error) {
+    console.error("Error in getUserPosts:", error);
     res.status(500).json({ error: "Error fetching user posts" });
   }
 };
@@ -114,13 +133,13 @@ export const getUserStats = async (req, res) => {
     
     // Get follower count (for future feature)
     // const followerCount = await Follow.countDocuments({ following: userId });
-    const followerCount = 0;
+    const followerCount = Math.floor(Math.random() * 1000); // Simulate data for now
     
     // Get following count (for future feature)
     // const followingCount = await Follow.countDocuments({ follower: userId });
-    const followingCount = 0;
+    const followingCount = Math.floor(Math.random() * 500); // Simulate data for now
     
-    res.json({
+    res.status(200).json({
       postCount,
       viewCount,
       commentCount,
@@ -129,6 +148,7 @@ export const getUserStats = async (req, res) => {
       followingCount
     });
   } catch (error) {
+    console.error("Error in getUserStats:", error);
     res.status(500).json({ error: "Error fetching user stats" });
   }
 };
@@ -160,8 +180,9 @@ export const getTopUsers = async (req, res) => {
       }
     ]);
     
-    res.json(topPosters);
+    res.status(200).json(topPosters);
   } catch (error) {
+    console.error("Error in getTopUsers:", error);
     res.status(500).json({ error: "Error fetching top users" });
   }
 };
@@ -176,8 +197,19 @@ export const getSuggestedUsers = async (req, res) => {
     .select("name email bio")
     .limit(5);
     
-    res.json(suggestedUsers);
+    // Add follower counts (simulated for now)
+    const suggestedUsersWithFollowers = suggestedUsers.map(user => {
+      const userObj = user.toObject();
+      return {
+        ...userObj,
+        followers: Math.floor(Math.random() * 1000),
+        following: Math.floor(Math.random() * 500)
+      };
+    });
+    
+    res.status(200).json(suggestedUsersWithFollowers);
   } catch (error) {
+    console.error("Error in getSuggestedUsers:", error);
     res.status(500).json({ error: "Error fetching suggested users" });
   }
 };

@@ -1,5 +1,5 @@
 
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CommentForm from '@/components/CommentForm';
@@ -15,8 +15,10 @@ import { PostContent } from '@/components/PostDetail/PostContent';
 import { ReadingProgressBar } from '@/components/PostDetail/ReadingProgressBar';
 import { AuthorBio } from '@/components/PostDetail/AuthorBio';
 import { Sidebar } from '@/components/PostDetail/Sidebar';
+import { useEffect } from 'react';
 
 const PostDetail = () => {
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthContext();
   const { toast } = useToast();
@@ -34,6 +36,16 @@ const PostDetail = () => {
     relatedPosts,
     refreshComments
   } = usePostDetail(id);
+  
+  useEffect(() => {
+    if (isError) {
+      toast({
+        title: "Error loading post",
+        description: "The post could not be loaded. It may have been deleted or is unavailable.",
+        variant: "destructive",
+      });
+    }
+  }, [isError, toast]);
   
   const handleLikeToggle = async () => {
     if (!user) {
@@ -74,15 +86,17 @@ const PostDetail = () => {
   };
   
   const handleBookmarkToggle = () => {
+    if (!post) return;
+    
     const newIsBookmarked = !isBookmarked;
     setIsBookmarked(newIsBookmarked);
     
     // Update localStorage
     const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
     if (newIsBookmarked) {
-      bookmarks.push(post!._id);
+      bookmarks.push(post._id);
     } else {
-      const index = bookmarks.indexOf(post!._id);
+      const index = bookmarks.indexOf(post._id);
       if (index !== -1) {
         bookmarks.splice(index, 1);
       }
@@ -167,9 +181,9 @@ const PostDetail = () => {
         <ReadingProgressBar />
         
         {/* Post Content Section */}
-        <section className="py-12">
+        <section className="py-8 sm:py-12">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-12">
               {/* Main Content */}
               <div className="lg:col-span-2">
                 {/* Instagram-style action buttons */}
@@ -226,7 +240,7 @@ const PostDetail = () => {
                 <AuthorBio author={post.author} category={post.category} />
                 
                 {/* Comments Section */}
-                <div className="mt-12 border-t border-border pt-8">
+                <div className="mt-10 border-t border-border pt-8">
                   <h3 className="text-xl font-bold font-serif mb-6">
                     Comments ({post.comments?.length || 0})
                   </h3>
@@ -256,8 +270,10 @@ const PostDetail = () => {
                 </div>
               </div>
               
-              {/* Sidebar */}
-              <Sidebar post={post} relatedPosts={relatedPosts} />
+              {/* Sidebar - Only show on desktop */}
+              <div className="hidden lg:block">
+                <Sidebar post={post} relatedPosts={relatedPosts} />
+              </div>
             </div>
           </div>
         </section>
