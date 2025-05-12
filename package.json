@@ -1,0 +1,20 @@
+{
+  "name": "vibrant-vista-writes",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "dependencies": {
+    "concurrently": "^8.0.1"
+  }
+}
