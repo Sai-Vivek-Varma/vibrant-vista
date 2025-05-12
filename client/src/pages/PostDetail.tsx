@@ -6,18 +6,15 @@ import CommentForm from '@/components/CommentForm';
 import Comment from '@/components/Comment';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, MessageSquare } from 'lucide-react';
-import { usePostDetail } from '@/hooks/usePostDetail';
+import { Eye, MessageSquare, Heart, Bookmark, Share } from 'lucide-react';
 import { sharePost } from '@/utils/postUtils';
+import { usePostDetail } from '@/hooks/usePostDetail';
 
-// Import refactored components
-import PostHero from '@/components/PostDetail/PostHero';
-import ActionButtons from '@/components/PostDetail/ActionButtons';
-import PostContent from '@/components/PostDetail/PostContent';
-import InteractiveFooter from '@/components/PostDetail/InteractiveFooter';
-import AuthorBio from '@/components/PostDetail/AuthorBio';
-import Sidebar from '@/components/PostDetail/Sidebar';
-import ReadingProgressBar from '@/components/PostDetail/ReadingProgressBar';
+import { PostHero } from '@/components/PostDetail/PostHero';
+import { PostContent } from '@/components/PostDetail/PostContent';
+import { ReadingProgressBar } from '@/components/PostDetail/ReadingProgressBar';
+import { AuthorBio } from '@/components/PostDetail/AuthorBio';
+import { Sidebar } from '@/components/PostDetail/Sidebar';
 
 const PostDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,13 +35,66 @@ const PostDetail = () => {
     refreshComments
   } = usePostDetail(id);
   
-  const handleLikeToggle = (newHasLiked: boolean, newLikes: number) => {
-    setHasLiked(newHasLiked);
-    setLikes(newLikes);
+  const handleLikeToggle = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to like posts",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts/${id}/likes`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to toggle like');
+      
+      const data = await response.json();
+      setHasLiked(data.liked);
+      setLikes(data.likesCount);
+      
+      toast({
+        title: data.liked ? "Post Liked" : "Like Removed",
+        description: data.liked ? "You have liked this post" : "You have removed your like",
+      });
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update like status",
+        variant: "destructive",
+      });
+    }
   };
   
-  const handleBookmarkToggle = (newIsBookmarked: boolean) => {
+  const handleBookmarkToggle = () => {
+    const newIsBookmarked = !isBookmarked;
     setIsBookmarked(newIsBookmarked);
+    
+    // Update localStorage
+    const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+    if (newIsBookmarked) {
+      bookmarks.push(post!._id);
+    } else {
+      const index = bookmarks.indexOf(post!._id);
+      if (index !== -1) {
+        bookmarks.splice(index, 1);
+      }
+    }
+    localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+    
+    toast({
+      title: newIsBookmarked ? "Bookmarked!" : "Bookmark Removed",
+      description: newIsBookmarked 
+        ? "Post saved to your bookmarks."
+        : "Post removed from your bookmarks.",
+    });
   };
   
   const handleShareClick = async () => {
@@ -122,24 +172,41 @@ const PostDetail = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
               {/* Main Content */}
               <div className="lg:col-span-2">
-                {/* Action buttons */}
-                <ActionButtons 
-                  postId={post._id}
-                  authorId={post.author._id}
-                  title={post.title}
-                  excerpt={post.excerpt}
-                  isBookmarked={isBookmarked}
-                  hasLiked={hasLiked}
-                  likes={likes}
-                  onBookmarkToggle={handleBookmarkToggle}
-                  onLikeToggle={handleLikeToggle}
-                />
+                {/* Instagram-style action buttons */}
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center space-x-4">
+                    <button 
+                      onClick={handleLikeToggle}
+                      className={`flex items-center gap-1 ${hasLiked ? 'text-red-500' : ''}`}
+                    >
+                      <Heart size={20} className={hasLiked ? 'fill-red-500' : ''} />
+                      <span>{likes}</span>
+                    </button>
+                    
+                    <button className="flex items-center gap-1">
+                      <MessageSquare size={20} />
+                      <span>{post.comments?.length || 0}</span>
+                    </button>
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <button onClick={handleBookmarkToggle}>
+                      <Bookmark 
+                        size={20} 
+                        className={isBookmarked ? 'fill-primary text-primary' : ''} 
+                      />
+                    </button>
+                    <button onClick={handleShareClick}>
+                      <Share size={20} />
+                    </button>
+                  </div>
+                </div>
                 
                 {/* Post stats */}
                 <div className="flex items-center space-x-4 mb-6">
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Eye size={16} />
-                    <span>{Math.floor(Math.random() * 100) + 50} views</span>
+                    <span>{post.views || 0} views</span>
                   </div>
                   
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -153,26 +220,6 @@ const PostDetail = () => {
                   content={post.content} 
                   coverImage={post.coverImage} 
                   title={post.title}
-                />
-                
-                {/* Interactive elements */}
-                <InteractiveFooter 
-                  hasLiked={hasLiked}
-                  likes={likes}
-                  isBookmarked={isBookmarked}
-                  onLikeClick={() => {
-                    if (user) {
-                      handleLikeToggle(!hasLiked, hasLiked ? likes - 1 : likes + 1);
-                    } else {
-                      toast({
-                        title: "Authentication Required",
-                        description: "Please log in to like posts",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                  onBookmarkClick={() => handleBookmarkToggle(!isBookmarked)}
-                  onShareClick={handleShareClick}
                 />
                 
                 {/* Author Bio Card */}

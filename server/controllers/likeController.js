@@ -90,14 +90,17 @@ export const toggleLike = async (req, res) => {
 export const checkLikeStatus = async (req, res) => {
   try {
     const postId = req.params.postId;
-    const userId = req.user._id;
+    const userId = req.user?._id;
 
-    const like = await Like.findOne({
-      post: postId,
-      user: userId,
-    });
-
-    const hasLiked = !!like;
+    let hasLiked = false;
+    
+    if (userId) {
+      const like = await Like.findOne({
+        post: postId,
+        user: userId,
+      });
+      hasLiked = !!like;
+    }
     
     // Get total likes count
     const likesCount = await Like.countDocuments({ post: postId });
@@ -112,6 +115,59 @@ export const checkLikeStatus = async (req, res) => {
       success: false,
       message: "Server Error",
       error: error.message,
+    });
+  }
+};
+
+// Get users who liked a post
+export const getLikeUsers = async (req, res) => {
+  try {
+    const postId = req.params.postId;
+    
+    const likes = await Like.find({ post: postId })
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(10);
+      
+    const users = likes.map(like => like.user);
+    
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
+    });
+  }
+};
+
+// Get posts liked by a user
+export const getLikedPosts = async (req, res) => {
+  try {
+    const userId = req.params.userId || req.user._id;
+    
+    const likes = await Like.find({ user: userId })
+      .populate({
+        path: 'post',
+        populate: {
+          path: 'author',
+          select: 'name email'
+        }
+      })
+      .sort({ createdAt: -1 });
+      
+    const posts = likes.map(like => like.post).filter(post => post !== null);
+    
+    res.status(200).json(posts);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: error.message
     });
   }
 };

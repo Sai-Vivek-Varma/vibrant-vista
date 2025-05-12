@@ -1,3 +1,4 @@
+
 import Post from "../models/Post.js";
 import Comment from "../models/Comment.js";
 import Like from "../models/Like.js";
@@ -5,10 +6,19 @@ import jwt from "jsonwebtoken";
 
 export const getPosts = async (req, res) => {
   try {
-    const { page = 1, limit = 10, category } = req.query;
+    const { page = 1, limit = 10, category, tag } = req.query;
     const skip = (page - 1) * limit;
     
-    const query = category ? { category } : {};
+    // Build query based on filters
+    const query = {};
+    
+    if (category) {
+      query.category = category;
+    }
+    
+    if (tag) {
+      query.tags = tag;
+    }
 
     const posts = await Post.find(query)
       .sort({ createdAt: -1 })
@@ -83,9 +93,21 @@ export const getFeaturedPosts = async (req, res) => {
   try {
     const featuredPosts = await Post.find({ isFeatured: true })
       .sort({ createdAt: -1 })
-      .limit(2)
+      .limit(parseInt(req.query.limit) || 2)
       .populate("author", "name email bio");
-    res.json(featuredPosts);
+      
+    // Add counts
+    const postsWithCounts = await Promise.all(featuredPosts.map(async (post) => {
+      const likesCount = await Like.countDocuments({ post: post._id });
+      const commentsCount = await Comment.countDocuments({ post: post._id });
+      return {
+        ...post.toObject(),
+        likes: likesCount,
+        commentsCount
+      };
+    }));
+      
+    res.json(postsWithCounts);
   } catch (error) {
     res.status(500).json({ error: "Error fetching featured posts" });
   }
@@ -95,10 +117,21 @@ export const getLatestPosts = async (req, res) => {
   try {
     const latestPosts = await Post.find()
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(parseInt(req.query.limit) || 5)
       .populate("author", "name email bio");
+      
+    // Add counts
+    const postsWithCounts = await Promise.all(latestPosts.map(async (post) => {
+      const likesCount = await Like.countDocuments({ post: post._id });
+      const commentsCount = await Comment.countDocuments({ post: post._id });
+      return {
+        ...post.toObject(),
+        likes: likesCount,
+        commentsCount
+      };
+    }));
 
-    res.json(latestPosts);
+    res.json(postsWithCounts);
   } catch (error) {
     res.status(500).json({ error: "Error fetching latest posts" });
   }
@@ -157,6 +190,7 @@ export const deletePost = async (req, res) => {
       return res.status(404).send({ error: "Post not found or unauthorized" });
 
     await Comment.deleteMany({ post: req.params.id });
+    await Like.deleteMany({ post: req.params.id });
     res.send(post);
   } catch (error) {
     res.status(500).send({ error: "Error deleting post" });
@@ -178,10 +212,12 @@ export const getCategories = async (req, res) => {
 
 export const getPopularCategories = async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 4;
+    
     const popularCategories = await Post.aggregate([
       { $group: { _id: "$category", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
-      { $limit: 4 },
+      { $limit: limit },
       { $project: { name: "$_id", count: 1, _id: 0 } },
     ]);
 
@@ -202,7 +238,19 @@ export const getPostsByCategory = async (req, res) => {
     const posts = await Post.find({ category: req.params.name })
       .sort({ createdAt: -1 })
       .populate("author", "name email bio");
-    res.send(posts);
+      
+    // Add counts
+    const postsWithCounts = await Promise.all(posts.map(async (post) => {
+      const likesCount = await Like.countDocuments({ post: post._id });
+      const commentsCount = await Comment.countDocuments({ post: post._id });
+      return {
+        ...post.toObject(),
+        likes: likesCount,
+        commentsCount
+      };
+    }));
+      
+    res.send(postsWithCounts);
   } catch (error) {
     res.status(500).send({ error: "Error fetching posts for this category" });
   }
@@ -218,12 +266,25 @@ export const searchPosts = async (req, res) => {
         { title: { $regex: q, $options: "i" } },
         { content: { $regex: q, $options: "i" } },
         { excerpt: { $regex: q, $options: "i" } },
+        { category: { $regex: q, $options: "i" } },
+        { tags: { $regex: q, $options: "i" } }
       ],
     })
       .sort({ createdAt: -1 })
       .populate("author", "name email bio");
+      
+    // Add counts
+    const postsWithCounts = await Promise.all(posts.map(async (post) => {
+      const likesCount = await Like.countDocuments({ post: post._id });
+      const commentsCount = await Comment.countDocuments({ post: post._id });
+      return {
+        ...post.toObject(),
+        likes: likesCount,
+        commentsCount
+      };
+    }));
 
-    res.send(posts);
+    res.send(postsWithCounts);
   } catch (error) {
     res.status(500).send({ error: "Error searching posts" });
   }
@@ -232,6 +293,8 @@ export const searchPosts = async (req, res) => {
 // Add a new function to get trending posts
 export const getTrendingPosts = async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 5;
+    
     // Get posts with most likes and comments, sort by combined score
     const posts = await Post.aggregate([
       {
@@ -258,7 +321,7 @@ export const getTrendingPosts = async (req, res) => {
         }
       },
       { $sort: { score: -1 } },
-      { $limit: 5 },
+      { $limit: limit },
       { $lookup: {
           from: "users",
           localField: "author",
@@ -281,16 +344,16 @@ export const getTrendingPosts = async (req, res) => {
           category: 1,
           createdAt: 1,
           updatedAt: 1,
+          likesCount: 1,
+          commentsCount: 1,
+          views: 1,
+          score: 1,
           author: {
             _id: 1,
             name: 1,
             email: 1,
             bio: 1
-          },
-          likesCount: 1,
-          commentsCount: 1,
-          views: 1,
-          score: 1
+          }
         }
       }
     ]);
@@ -299,5 +362,63 @@ export const getTrendingPosts = async (req, res) => {
   } catch (error) {
     console.error("Error in getTrendingPosts:", error);
     res.status(500).json({ error: "Error fetching trending posts" });
+  }
+};
+
+// Get posts by tag
+export const getPostsByTag = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+    
+    const posts = await Post.find({ tags: req.params.tag })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate("author", "name email bio");
+      
+    // Add counts
+    const postsWithCounts = await Promise.all(posts.map(async (post) => {
+      const likesCount = await Like.countDocuments({ post: post._id });
+      const commentsCount = await Comment.countDocuments({ post: post._id });
+      return {
+        ...post.toObject(),
+        likes: likesCount,
+        commentsCount
+      };
+    }));
+      
+    res.send(postsWithCounts);
+  } catch (error) {
+    res.status(500).send({ error: "Error fetching posts for this tag" });
+  }
+};
+
+// Get popular tags
+export const getPopularTags = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    
+    const posts = await Post.find({ tags: { $exists: true, $ne: [] } });
+    
+    // Count tag occurrences
+    const tagCounts = {};
+    posts.forEach(post => {
+      if (Array.isArray(post.tags)) {
+        post.tags.forEach(tag => {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+      }
+    });
+    
+    // Convert to array and sort
+    const sortedTags = Object.entries(tagCounts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+    
+    res.json(sortedTags);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching popular tags" });
   }
 };

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Post } from "@/types/post";
-import { Edit, Trash, Plus } from "lucide-react";
+import { Edit, Trash, Plus, BarChart2, MessageSquare, Eye } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,20 +16,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import PostEditor from "@/components/PostEditor";
-
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Dashboard = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [userStats, setUserStats] = useState({
+    totalPosts: 0,
+    totalViews: 0,
+    totalComments: 0,
+    totalLikes: 0
+  });
   const { user } = useAuthContext();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
-  // Define fetchUserPosts properly as a function inside the component
+  const API_BASE =
+    import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com";
+
   const fetchUserPosts = async () => {
     if (!user) return;
 
@@ -37,7 +45,7 @@ const Dashboard = () => {
 
       // Fetch only posts by the current user
       const postsResponse = await fetch(
-        `${API_BASE}/api/posts/user/${user._id}`,
+        `${API_BASE}/api/users/${user._id}/posts`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -48,6 +56,24 @@ const Dashboard = () => {
       if (!postsResponse.ok) throw new Error("Failed to fetch posts");
       const postsData = await postsResponse.json();
       setPosts(postsData);
+      
+      // Calculate stats
+      let views = 0;
+      let comments = 0;
+      let likes = 0;
+      
+      postsData.forEach((post: Post) => {
+        views += post.views || 0;
+        comments += post.comments?.length || post.commentsCount || 0;
+        likes += post.likes || post.likesCount || 0;
+      });
+      
+      setUserStats({
+        totalPosts: postsData.length,
+        totalViews: views,
+        totalComments: comments,
+        totalLikes: likes
+      });
     } catch (error) {
       console.error("Fetch error:", error);
       toast({
@@ -89,6 +115,12 @@ const Dashboard = () => {
         title: "Post Deleted",
         description: "Your post has been successfully deleted.",
       });
+      
+      // Update stats
+      setUserStats(prev => ({
+        ...prev,
+        totalPosts: prev.totalPosts - 1
+      }));
     } catch (error) {
       console.error("Delete error:", error);
       toast({
@@ -132,18 +164,22 @@ const Dashboard = () => {
           </div>
 
           {/* User Stats Section */}
-          <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8'>
             <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
               <h3 className='text-lg font-medium mb-2'>Total Posts</h3>
-              <p className='text-3xl font-bold'>{posts.length}</p>
+              <p className='text-3xl font-bold'>{userStats.totalPosts}</p>
             </div>
             <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
               <h3 className='text-lg font-medium mb-2'>Total Views</h3>
-              <p className='text-3xl font-bold'>1,245</p>
+              <p className='text-3xl font-bold'>{userStats.totalViews}</p>
             </div>
             <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
               <h3 className='text-lg font-medium mb-2'>Total Comments</h3>
-              <p className='text-3xl font-bold'>32</p>
+              <p className='text-3xl font-bold'>{userStats.totalComments}</p>
+            </div>
+            <div className='bg-white p-6 rounded-xl shadow-sm border border-border'>
+              <h3 className='text-lg font-medium mb-2'>Total Likes</h3>
+              <p className='text-3xl font-bold'>{userStats.totalLikes}</p>
             </div>
           </div>
 
@@ -190,8 +226,18 @@ const Dashboard = () => {
                         <span className='inline-block w-2 h-2 rounded-full bg-secondary'></span>
                         {post.category}
                       </span>
-                      <span>325 views</span>
-                      <span>12 comments</span>
+                      <span className="flex items-center gap-1">
+                        <Eye size={14} />
+                        {post.views || 0} views
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare size={14} />
+                        {post.comments?.length || post.commentsCount || 0} comments
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <BarChart2 size={14} /> 
+                        {post.likes || post.likesCount || 0} likes
+                      </span>
                     </div>
                   </div>
 
@@ -237,7 +283,7 @@ const Dashboard = () => {
 
       {/* Post Editor Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className='max-w-2xl h-[90vh] overflow-y-auto'>
+        <DialogContent className={`${isMobile ? 'max-w-full h-full' : 'max-w-2xl h-[90vh]'} overflow-y-auto`}>
           <DialogHeader>
             <DialogTitle>
               {editingPostId ? "Edit Post" : "Create New Post"}

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Post } from '@/types/post';
-import { isPostBookmarked, isPostLiked } from '@/utils/postUtils';
+import { isPostBookmarked } from '@/utils/postUtils';
 import { useAuthContext } from '@/contexts/AuthContext';
 
 export const usePostDetail = (id: string | undefined) => {
@@ -11,6 +11,7 @@ export const usePostDetail = (id: string | undefined) => {
   const [hasLiked, setHasLiked] = useState(false);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const { user } = useAuthContext();
+  const API_BASE = import.meta.env.VITE_API_URL || "https://vibrant-vista-sa5w.onrender.com";
   
   // Fetch post data using React Query
   const { 
@@ -22,11 +23,15 @@ export const usePostDetail = (id: string | undefined) => {
     queryKey: ['post', id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts/${id}`, {
-        headers: {
-          'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : ''
-        }
-      });
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (localStorage.getItem('token')) {
+        headers.Authorization = `Bearer ${localStorage.getItem('token')}`;
+      }
+      
+      const response = await fetch(`${API_BASE}/api/posts/${id}`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to fetch post');
@@ -43,7 +48,7 @@ export const usePostDetail = (id: string | undefined) => {
       const fetchRelatedPosts = async () => {
         try {
           const response = await fetch(
-            `${import.meta.env.VITE_API_URL}/api/posts?category=${post.category}&limit=2`
+            `${API_BASE}/api/posts?category=${post.category}&limit=2`
           );
           if (!response.ok) throw new Error('Failed to fetch related posts');
           
@@ -59,7 +64,7 @@ export const usePostDetail = (id: string | undefined) => {
       
       fetchRelatedPosts();
     }
-  }, [post]);
+  }, [post, API_BASE]);
 
   // Initialize likes and bookmark status
   useEffect(() => {
@@ -71,14 +76,14 @@ export const usePostDetail = (id: string | undefined) => {
       setIsBookmarked(isPostBookmarked(post._id));
       
       // Check if user has liked this post
-      setHasLiked(post.hasLiked || isPostLiked(post._id));
+      setHasLiked(post.hasLiked || false);
       
       // If user is authenticated, check server for like status
       if (user && id) {
         const checkLikeStatus = async () => {
           try {
             const response = await fetch(
-              `${import.meta.env.VITE_API_URL}/api/posts/${id}/likes/check`,
+              `${API_BASE}/api/posts/${id}/likes/check`,
               {
                 headers: {
                   'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -99,7 +104,7 @@ export const usePostDetail = (id: string | undefined) => {
         checkLikeStatus();
       }
     }
-  }, [post, id, user]);
+  }, [post, id, user, API_BASE]);
   
   const refreshComments = async () => {
     await refetch();

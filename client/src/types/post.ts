@@ -22,4 +22,6 @@ export interface Post {
   likesCount?: number;
   commentsCount?: number;
   tags?: string[];
+  isFeatured?: boolean;
+  score?: number;
 }
