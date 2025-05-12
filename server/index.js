@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import postRoutes from "./routes/postRoutes.js";
 import commentRoutes from "./routes/commentRoutes.js";
+import likeRoutes from "./routes/likeRoutes.js";
 
 // ES6 alternative for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -29,9 +30,10 @@ connectDB();
 
 // API Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
-app.use("/api/posts", commentRoutes);
+app.use("/api", commentRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api", likeRoutes);
 
 const PORT = process.env.PORT || 5000;
 

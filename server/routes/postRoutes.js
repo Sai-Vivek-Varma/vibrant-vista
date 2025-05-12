@@ -1,3 +1,4 @@
+
 import express from "express";
 import auth from "../middleware/auth.js";
 import {
@@ -11,6 +12,7 @@ import {
   searchPosts,
   getFeaturedPosts,
   getLatestPosts,
+  getTrendingPosts,
 } from "../controllers/postController.js";
 
 const router = express.Router();
@@ -21,6 +23,7 @@ router.get("/categories", getCategories);
 router.get("/categories/:name/posts", getPostsByCategory);
 router.get("/featured", getFeaturedPosts);
 router.get("/latest", getLatestPosts);
+router.get("/trending", getTrendingPosts); // Add trending posts route
 router.get("/:id", getPost);
 
 // Protected routes

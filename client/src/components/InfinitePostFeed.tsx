@@ -1,8 +1,10 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import PostCard from "@/components/PostCard";
 import { Loader2 } from "lucide-react";
 import { Post } from "@/types/post";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface InfinitePostFeedProps {
   initialPosts?: Post[];
@@ -16,6 +18,7 @@ const InfinitePostFeed = ({ initialPosts = [] }: InfinitePostFeedProps) => {
   const { toast } = useToast();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const loadMorePosts = useCallback(async () => {
     if (isLoading || !hasMore) return;
@@ -26,7 +29,7 @@ const InfinitePostFeed = ({ initialPosts = [] }: InfinitePostFeedProps) => {
         `${
           import.meta.env.VITE_API_URL ||
           "https://vibrant-vista-sa5w.onrender.com"
-        }/api/posts?page=${page}&limit=6`
+        }/api/posts?page=${page}&limit=${isMobile ? 4 : 6}`
       );
 
       if (!response.ok) throw new Error("Failed to fetch posts");
@@ -49,7 +52,7 @@ const InfinitePostFeed = ({ initialPosts = [] }: InfinitePostFeedProps) => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, isLoading, hasMore, toast]);
+  }, [page, isLoading, hasMore, toast, isMobile]);
 
   useEffect(() => {
     if (!loadingRef.current) return;
@@ -77,7 +80,7 @@ const InfinitePostFeed = ({ initialPosts = [] }: InfinitePostFeedProps) => {
 
   return (
     <div className='w-full'>
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+      <div className={`grid grid-cols-1 ${isMobile ? '' : 'md:grid-cols-2 lg:grid-cols-3'} gap-6`}>
         {posts.map((post) => (
           <PostCard key={post._id} post={post} />
         ))}

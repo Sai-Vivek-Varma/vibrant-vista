@@ -1,13 +1,36 @@
 import Post from "../models/Post.js";
 import Comment from "../models/Comment.js";
+import Like from "../models/Like.js";
+import jwt from "jsonwebtoken";
 
 export const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find({})
+    const { page = 1, limit = 10, category } = req.query;
+    const skip = (page - 1) * limit;
+    
+    const query = category ? { category } : {};
+
+    const posts = await Post.find(query)
       .sort({ createdAt: -1 })
-      .populate("author", "name email bio");
-    res.send(posts);
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate("author", "name email bio")
+      .lean();
+
+    // Add likes count to each post
+    const postsWithCounts = await Promise.all(posts.map(async (post) => {
+      const likesCount = await Like.countDocuments({ post: post._id });
+      const commentsCount = await Comment.countDocuments({ post: post._id });
+      return {
+        ...post,
+        likes: likesCount,
+        commentCount: commentsCount
+      };
+    }));
+      
+    res.send(postsWithCounts);
   } catch (error) {
+    console.error("Error in getPosts:", error);
     res.status(500).send({ error: "Error fetching posts" });
   }
 };
@@ -22,8 +45,36 @@ export const getPost = async (req, res) => {
       });
 
     if (!post) return res.status(404).send({ error: "Post not found" });
-    res.send(post);
+    
+    // Increment view count
+    post.views += 1;
+    await post.save();
+    
+    // Get likes count
+    const likesCount = await Like.countDocuments({ post: post._id });
+    
+    // Check if user has liked the post
+    let hasLiked = false;
+    if (req.headers.authorization) {
+      const token = req.headers.authorization.split(' ')[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          const userId = decoded.id;
+          hasLiked = await Like.exists({ post: post._id, user: userId });
+        } catch (err) {
+          // Token validation error - ignore
+        }
+      }
+    }
+    
+    res.send({ 
+      ...post.toObject(), 
+      likes: likesCount,
+      hasLiked: !!hasLiked
+    });
   } catch (error) {
+    console.error("Error in getPost:", error);
     res.status(500).send({ error: "Error fetching post" });
   }
 };
@@ -79,6 +130,8 @@ export const updatePost = async (req, res) => {
       "excerpt",
       "category",
       "coverImage",
+      "isFeatured",
+      "tags",
     ];
     const isValidOperation = updates.every((update) =>
       allowedUpdates.includes(update)
@@ -173,5 +226,78 @@ export const searchPosts = async (req, res) => {
     res.send(posts);
   } catch (error) {
     res.status(500).send({ error: "Error searching posts" });
+  }
+};
+
+// Add a new function to get trending posts
+export const getTrendingPosts = async (req, res) => {
+  try {
+    // Get posts with most likes and comments, sort by combined score
+    const posts = await Post.aggregate([
+      {
+        $lookup: {
+          from: "likes",
+          localField: "_id",
+          foreignField: "post",
+          as: "likes"
+        }
+      },
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "post",
+          as: "commentsArray"
+        }
+      },
+      {
+        $addFields: {
+          likesCount: { $size: "$likes" },
+          commentsCount: { $size: "$commentsArray" },
+          score: { $add: [{ $size: "$likes" }, { $multiply: [{ $size: "$commentsArray" }, 2] }, "$views"] }
+        }
+      },
+      { $sort: { score: -1 } },
+      { $limit: 5 },
+      { $lookup: {
+          from: "users",
+          localField: "author",
+          foreignField: "_id",
+          as: "authorObj" 
+        }
+      },
+      {
+        $addFields: {
+          author: { $arrayElemAt: ["$authorObj", 0] }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          excerpt: 1,
+          content: 1,
+          coverImage: 1,
+          category: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          author: {
+            _id: 1,
+            name: 1,
+            email: 1,
+            bio: 1
+          },
+          likesCount: 1,
+          commentsCount: 1,
+          views: 1,
+          score: 1
+        }
+      }
+    ]);
+    
+    res.json(posts);
+  } catch (error) {
+    console.error("Error in getTrendingPosts:", error);
+    res.status(500).json({ error: "Error fetching trending posts" });
   }
 };

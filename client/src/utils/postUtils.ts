@@ -22,6 +22,14 @@ export const toggleBookmarkPost = (postId: string): boolean => {
 };
 
 /**
+ * Check if post is bookmarked
+ */
+export const isPostBookmarked = (postId: string): boolean => {
+  const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+  return bookmarks.includes(postId);
+};
+
+/**
  * Toggle like status for a post
  */
 export const toggleLikePost = (postId: string): boolean => {
@@ -40,9 +48,17 @@ export const toggleLikePost = (postId: string): boolean => {
 };
 
 /**
+ * Check if post is liked
+ */
+export const isPostLiked = (postId: string): boolean => {
+  const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+  return likedPosts.includes(postId);
+};
+
+/**
  * Share post content
  */
-export const sharePost = (title: string, excerpt: string, url: string): Promise<boolean> => {
+export const sharePost = async (title: string, excerpt: string, url: string): Promise<boolean> => {
   if (navigator.share) {
     return navigator.share({
       title,
@@ -59,22 +75,6 @@ export const sharePost = (title: string, excerpt: string, url: string): Promise<
     navigator.clipboard.writeText(url);
     return Promise.resolve(true);
   }
-};
-
-/**
- * Check if post is bookmarked
- */
-export const isPostBookmarked = (postId: string): boolean => {
-  const bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
-  return bookmarks.includes(postId);
-};
-
-/**
- * Check if post is liked
- */
-export const isPostLiked = (postId: string): boolean => {
-  const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-  return likedPosts.includes(postId);
 };
 
 /**
@@ -108,3 +108,7 @@ export const renderPostContent = (content: string) => {
   
   return paragraphs;
 };
+
+// Legacy export names for backward compatibility
+export const toggleBookmark = toggleBookmarkPost;
+export const toggleLike = toggleLikePost;

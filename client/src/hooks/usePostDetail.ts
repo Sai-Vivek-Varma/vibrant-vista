@@ -3,12 +3,14 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Post } from '@/types/post';
 import { isPostBookmarked, isPostLiked } from '@/utils/postUtils';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 export const usePostDetail = (id: string | undefined) => {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [likes, setLikes] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
+  const { user } = useAuthContext();
   
   // Fetch post data using React Query
   const { 
@@ -41,12 +43,12 @@ export const usePostDetail = (id: string | undefined) => {
       const fetchRelatedPosts = async () => {
         try {
           const response = await fetch(
-            `${import.meta.env.VITE_API_URL}/api/categories/${post.category}/posts`
+            `${import.meta.env.VITE_API_URL}/api/posts?category=${post.category}&limit=2`
           );
           if (!response.ok) throw new Error('Failed to fetch related posts');
           
           const data = await response.json();
-          // Filter out current post and limit to 2 posts
+          // Filter out current post
           setRelatedPosts(
             data.filter((p: Post) => p._id !== post._id).slice(0, 2)
           );
@@ -59,19 +61,45 @@ export const usePostDetail = (id: string | undefined) => {
     }
   }, [post]);
 
-  // Initialize random likes count
+  // Initialize likes and bookmark status
   useEffect(() => {
     if (post) {
-      // Generate random number of likes between 5 and 50
-      setLikes(Math.floor(Math.random() * 45) + 5);
+      // Set likes from post data
+      setLikes(post.likes || post.likesCount || 0);
       
       // Check if user has bookmarked this post
       setIsBookmarked(isPostBookmarked(post._id));
       
       // Check if user has liked this post
-      setHasLiked(isPostLiked(post._id));
+      setHasLiked(post.hasLiked || isPostLiked(post._id));
+      
+      // If user is authenticated, check server for like status
+      if (user && id) {
+        const checkLikeStatus = async () => {
+          try {
+            const response = await fetch(
+              `${import.meta.env.VITE_API_URL}/api/posts/${id}/likes/check`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+              }
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              setHasLiked(data.hasLiked);
+              setLikes(data.likesCount);
+            }
+          } catch (error) {
+            console.error('Error checking like status:', error);
+          }
+        };
+        
+        checkLikeStatus();
+      }
     }
-  }, [post]);
+  }, [post, id, user]);
   
   const refreshComments = async () => {
     await refetch();

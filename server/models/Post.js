@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const postSchema = new mongoose.Schema(
@@ -44,11 +45,26 @@ const postSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    likesCount: {
+      type: Number,
+      default: 0,
+    },
+    tags: [String],
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// Virtual for likes
+postSchema.virtual('likes', {
+  ref: 'Like',
+  localField: '_id',
+  foreignField: 'post',
+  count: true
+});
 
 const Post = mongoose.model("Post", postSchema);
 
